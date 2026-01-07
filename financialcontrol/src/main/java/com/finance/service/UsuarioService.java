@@ -1,5 +1,6 @@
 package com.finance.service;
 
+import com.finance.dto.Usuario.DadosRegistro;
 import com.finance.model.Usuario;
 import com.finance.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,17 +15,14 @@ public class UsuarioService {
     @Autowired
     private UsuarioRepository repository;
 
-    public Usuario cadastrar(String username, String senha) {
-        if (repository.existsByUsername(username)) {
+    public Usuario cadastrar(DadosRegistro dados) {
+        if (repository.existsByUsername(dados.username())) {
             throw new RuntimeException("Usuário já existe");
         }
 
-        Usuario usuario = new Usuario();
-        usuario.setUsername(username);
-        // Em produção, use BCrypt ou similar para hash de senha
-        usuario.setSenha(senha);
+        var novoUsuario = new Usuario(null, dados.username(), dados.senha(), null, null, null);
 
-        return repository.save(usuario);
+        return repository.save(novoUsuario);
     }
 
     public Optional<Usuario> autenticar(String username, String senha) {

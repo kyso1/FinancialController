@@ -1,11 +1,17 @@
 package com.finance.controller;
 
+import com.finance.dto.Usuario.DadosRegistro;
+import com.finance.dto.Usuario.DadosRetorno;
 import com.finance.model.Usuario;
 import com.finance.service.UsuarioService;
+
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -20,22 +26,16 @@ public class UsuarioController {
     private UsuarioService service;
 
     @PostMapping("/cadastro")
-    public ResponseEntity<?> cadastrar(@RequestBody Map<String, String> dados) {
+    public ResponseEntity<?> cadastrar(@RequestBody @Valid DadosRegistro dados) {
         try {
-            String username = dados.get("username");
-            String senha = dados.get("senha");
+            Usuario newUser = service.cadastrar(dados);
+            
+            var uri = URI.create("/api/auth/perfil/" + newUser.getId());
 
-            Usuario usuario = service.cadastrar(username, senha);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("id", usuario.getId());
-            response.put("username", usuario.getUsername());
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.created(uri).body(new DadosRetorno(newUser.getId(), newUser.getUsername()));
         } catch (RuntimeException e) {
-            Map<String, String> erro = new HashMap<>();
-            erro.put("erro", e.getMessage());
-            return ResponseEntity.badRequest().body(erro);
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
