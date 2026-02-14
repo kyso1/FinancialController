@@ -1,418 +1,450 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Controle Financeiro - Lançamentos</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Financeiro - Lançamentos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81' }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300 font-sans">
 
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
-    />
-    <link rel="stylesheet" href="css/style.css" />
-  </head>
-  <body>
-    <!-- Canvas para animação de fundo -->
-    <canvas id="parallaxCanvas"></canvas>
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo + Navegação -->
+        <div class="flex items-center gap-1 sm:gap-6">
+          <a href="dashboard.html" class="flex items-center gap-2 text-brand-600 dark:text-brand-400 font-bold text-lg">
+            <div class="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center">
+              <i class="bi bi-wallet2 text-white text-sm"></i>
+            </div>
+            <span class="hidden sm:inline">Financeiro</span>
+          </a>
+          <div class="flex items-center gap-1 ml-2">
+            <a href="dashboard.html" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <i class="bi bi-grid-1x2 mr-1"></i><span class="hidden sm:inline">Dashboard</span>
+            </a>
+            <a href="index.html" class="px-3 py-2 rounded-lg text-sm font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 transition-colors">
+              <i class="bi bi-receipt mr-1"></i><span class="hidden sm:inline">Lançamentos</span>
+            </a>
+          </div>
+        </div>
 
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
-      <div class="container">
-        <a class="navbar-brand fw-bold" href="dashboard.html">
-          <i class="bi bi-cash-stack"></i> Controle Financeiro
-        </a>
-        <div class="d-flex align-items-center">
-          <ul class="navbar-nav me-3">
-            <li class="nav-item">
-              <a class="nav-link" href="dashboard.html">
-                <i class="bi bi-house-door"></i> Dashboard
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link active" href="index.html">
-                <i class="bi bi-list-ul"></i> Lançamentos
-              </a>
-            </li>
-          </ul>
+        <!-- Ações direita -->
+        <div class="flex items-center gap-2">
+          <!-- Notificações -->
+          <button onclick="abrirModal('modalNotificacoes'); carregarNotificacoesPendentes();" class="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Notificações">
+            <i class="bi bi-bell text-lg text-gray-500 dark:text-gray-400"></i>
+            <span id="badgeNotificacoes" class="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center hidden">0</span>
+          </button>
 
-          <!-- Badge de notificações -->
-          <div class="position-relative me-3">
-            <button class="btn btn-sm btn-outline-primary position-relative" id="btnNotificacoes" data-bs-toggle="modal" data-bs-target="#modalNotificacoes" title="Compartilhamentos pendentes">
-              <i class="bi bi-bell"></i>
-              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="badgeNotificacoes">
-                0
-              </span>
+          <!-- Perfil -->
+          <div class="relative" id="perfilDropdownContainer">
+            <button onclick="toggleDropdown('perfilDropdownMenu')" class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <img id="fotoPerfilNav" src="https://ui-avatars.com/api/?name=U&background=6366f1&color=fff" class="w-8 h-8 rounded-full ring-2 ring-brand-500/20" alt="Perfil">
+              <span id="nomeUsuarioNav" class="text-sm font-medium hidden md:inline">Usuário</span>
+              <i class="bi bi-chevron-down text-xs text-gray-400 hidden md:inline"></i>
             </button>
+            <div id="perfilDropdownMenu" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 hidden py-1 z-50">
+              <a href="#" onclick="abrirModal('modalPerfil'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <i class="bi bi-person-circle"></i> Editar Perfil
+              </a>
+              <hr class="border-gray-200 dark:border-gray-700 my-1">
+              <a href="#" id="btnLogout" class="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+                <i class="bi bi-box-arrow-right"></i> Sair
+              </a>
+            </div>
           </div>
 
-          <!-- Perfil do usuário -->
-          <div class="dropdown me-2">
-            <button class="btn btn-sm d-flex align-items-center" type="button" id="dropdownPerfil" data-bs-toggle="dropdown">
-              <img id="fotoPerfilNav" src="https://ui-avatars.com/api/?name=User&background=random" class="rounded-circle me-2" width="32" height="32" alt="Perfil">
-              <span id="nomeUsuarioNav">Usuário</span>
-              <i class="bi bi-chevron-down ms-1"></i>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalPerfil"><i class="bi bi-person-circle"></i> Editar Perfil</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="#" id="btnLogout"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
-            </ul>
-          </div>
-
-          <button class="theme-toggle" id="themeToggle" title="Alternar tema">
-            <i class="bi bi-moon-fill" id="themeIcon"></i>
+          <!-- Tema -->
+          <button id="themeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Alternar tema">
+            <i class="bi bi-moon-fill text-gray-500 dark:text-gray-400" id="themeIcon"></i>
           </button>
         </div>
       </div>
-    </nav>
+    </div>
+  </nav>
 
-    <div class="container mt-3 pb-5">
-      <!-- Filtros -->
-      <div class="card mb-3">
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-3">
-              <label class="form-label small">Tipo</label>
-              <select class="form-select form-select-sm" id="filtroTipo">
-                <option value="">Todos</option>
-                <option value="DESPESA">Despesas</option>
-                <option value="RECEITA">Receitas</option>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small">Categoria</label>
-              <select class="form-select form-select-sm" id="filtroCategoria">
-                <option value="">Todas</option>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small">Data Inicial</label>
-              <input type="date" class="form-control form-control-sm" id="filtroDataInicio" />
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small">Data Final</label>
-              <input type="date" class="form-control form-control-sm" id="filtroDataFim" />
-            </div>
-          </div>
-          <div class="row mt-2">
-            <div class="col-12 d-flex gap-2 align-items-center flex-wrap">
-              <button class="btn btn-sm btn-primary" id="btnAplicarFiltros">
-                <i class="bi bi-funnel"></i> Aplicar Filtros
-              </button>
-              <button class="btn btn-sm btn-secondary" id="btnLimparFiltros">
-                <i class="bi bi-x-circle"></i> Limpar
-              </button>
-
-              <div class="vr d-none d-md-block"></div>
-
-              <div class="btn-group" role="group">
-                <button class="btn btn-sm btn-outline-primary active" id="btnOrdenarData" title="Ordenar por data">
-                  <i class="bi bi-calendar"></i> Data
-                </button>
-                <button class="btn btn-sm btn-outline-primary" id="btnOrdenarValor" title="Ordenar por valor">
-                  <i class="bi bi-currency-dollar"></i> Valor
-                </button>
-              </div>
-
-              <button class="btn btn-sm btn-success ms-auto" data-bs-toggle="modal" data-bs-target="#modalImportacao">
-                <i class="bi bi-upload"></i> Importar Extrato
-              </button>
-            </div>
-          </div>
+  <!-- Conteúdo -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28">
+    <!-- Filtros -->
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 mb-6 shadow-sm">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tipo</label>
+          <select id="filtroTipo" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all">
+            <option value="">Todos</option>
+            <option value="DESPESA">Despesas</option>
+            <option value="RECEITA">Receitas</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Categoria</label>
+          <select id="filtroCategoria" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data Inicial</label>
+          <input type="date" id="filtroDataInicio" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data Final</label>
+          <input type="date" id="filtroDataFim" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all">
         </div>
       </div>
-
-      <div class="card card-saldo shadow-sm mb-4">
-        <div class="card-body text-center">
-          <small>Saldo Atual</small>
-          <h1 class="display-4 fw-bold" id="saldo-total">R$ 0,00</h1>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button id="btnAplicarFiltros" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-xl transition-colors">
+          <i class="bi bi-funnel mr-1"></i> Filtrar
+        </button>
+        <button id="btnLimparFiltros" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium rounded-xl transition-colors">
+          <i class="bi bi-x-circle mr-1"></i> Limpar
+        </button>
+        <div class="hidden sm:block w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+        <div class="flex rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <button id="btnOrdenarData" class="px-3 py-2 text-xs font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 transition-colors">
+            <i class="bi bi-calendar mr-1"></i>Data
+          </button>
+          <button id="btnOrdenarValor" class="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <i class="bi bi-currency-dollar mr-1"></i>Valor
+          </button>
         </div>
-      </div>
-
-      <h6 class="text-muted text-uppercase ms-1">Últimos Lançamentos</h6>
-      <div class="list-group shadow-sm" id="lista-lancamentos">
-        <div class="text-center p-3 text-muted">Carregando...</div>
-      </div>
-    </div>
-
-    <div class="fab-container">
-      <button
-        class="btn btn-primary btn-lg rounded-circle shadow p-3"
-        data-bs-toggle="modal"
-        data-bs-target="#modalLancamento"
-      >
-        <i class="bi bi-plus-lg fs-2"></i>
-      </button>
-    </div>
-
-    <div class="modal fade" id="modalLancamento" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Novo Lançamento</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <form id="form-lancamento">
-              <input type="hidden" id="inputId" />
-
-              <div class="mb-3">
-                <label class="form-label">Tipo de Lançamento</label>
-                <select
-                  class="form-select"
-                  id="inputTipo"
-                  onchange="ajustarFormulario()"
-                >
-                  <option value="DESPESA" selected>🔴 Saída</option>
-                  <option value="RECEITA">🟢 Extra</option>
-                  <option value="SALARIO">💰 Salário Mensal</option>
-                </select>
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Descrição</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="inputDescricao"
-                  placeholder="Ex: Mercado, Luz..."
-                  required
-                />
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Valor (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  class="form-control"
-                  id="inputValor"
-                  placeholder="0,00"
-                  required
-                />
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Data</label>
-                <input
-                  type="date"
-                  class="form-control"
-                  id="inputData"
-                  required
-                />
-              </div>
-
-              <div class="mb-3" id="categoriaContainer">
-                <label class="form-label">Categoria</label>
-                <select class="form-select" id="inputCategoria" required>
-                  <option value="">Selecione uma categoria</option>
-                </select>
-              </div>
-
-              <div class="form-check form-switch mb-3">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  id="inputFixo"
-                />
-                <label class="form-check-label" for="inputFixo"
-                  >Repete todo mês? (Fixo)</label
-                >
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-secondary"
-              data-bs-dismiss="modal"
-            >
-              Cancelar
+        <div class="ml-auto flex gap-2">
+          <button onclick="abrirModal('modalImportacao')" class="px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-medium rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors">
+            <i class="bi bi-upload mr-1"></i><span class="hidden sm:inline">Importar</span>
+          </button>
+          <div class="relative" id="exportDropdownContainer">
+            <button onclick="toggleDropdown('exportDropdownMenu')" class="px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+              <i class="bi bi-download mr-1"></i><span class="hidden sm:inline">Exportar</span> <i class="bi bi-chevron-down text-xs"></i>
             </button>
-            <button type="button" class="btn btn-primary" id="btn-salvar">
-              Salvar
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal de Importação -->
-    <div class="modal fade" id="modalImportacao" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Importar Extrato</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <p class="text-muted small">
-              Formatos aceitos: OFX ou CSV<br>
-              <strong>CSV:</strong> Data,Descrição,Valor,Tipo<br>
-              Exemplo: 01/01/2024,Compra supermercado,150.50,DESPESA
-            </p>
-            <div class="mb-3">
-              <label class="form-label">Selecione o arquivo</label>
-              <input type="file" class="form-control" id="arquivoImportacao" accept=".ofx,.csv" />
-            </div>
-            <div id="progressoImportacao" class="progress d-none" style="height: 25px;">
-              <div class="progress-bar progress-bar-striped progress-bar-animated"
-                   role="progressbar" style="width: 100%">
-                Importando...
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-              Cancelar
-            </button>
-            <button type="button" class="btn btn-primary" id="btnImportar">
-              <i class="bi bi-upload"></i> Importar
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal de Perfil -->
-    <div class="modal fade" id="modalPerfil" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Editar Perfil</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="text-center mb-3">
-              <img id="previewFotoPerfil" src="https://ui-avatars.com/api/?name=User&background=random" class="rounded-circle mb-2" width="100" height="100" alt="Perfil">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Nome</label>
-              <input type="text" class="form-control" id="inputNomePerfil" placeholder="Seu nome">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">URL da Foto de Perfil</label>
-              <input type="text" class="form-control" id="inputFotoPerfil" placeholder="https://exemplo.com/foto.jpg">
-              <small class="text-muted">Cole a URL de uma imagem ou use <a href="https://ui-avatars.com/" target="_blank">UI Avatars</a></small>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="btnSalvarPerfil">Salvar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal de Notificações/Compartilhamentos Pendentes -->
-    <div class="modal fade" id="modalNotificacoes" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Gastos Compartilhados</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div id="listaNotificacoes">
-              <div class="text-center text-muted p-3">Carregando...</div>
+            <div id="exportDropdownMenu" class="absolute right-0 mt-2 w-44 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 hidden py-1 z-50">
+              <a href="#" id="btnExportarExcel" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <i class="bi bi-file-earmark-excel text-emerald-600"></i> Excel (.xlsx)
+              </a>
+              <a href="#" id="btnExportarCSV" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <i class="bi bi-filetype-csv text-blue-600"></i> CSV (.csv)
+              </a>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Modal de Confirmação Personalizado -->
-    <div class="modal fade" id="modalConfirmacao" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0">
-          <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title" id="tituloConfirmacao">Confirmação</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body pt-2">
-            <p id="mensagemConfirmacao" class="mb-0"></p>
-          </div>
-          <div class="modal-footer border-0 gap-2 justify-content-end">
-            <button type="button" class="btn btn-secondary" id="btnConfirmarNao" data-bs-dismiss="modal">
-              Cancelar
-            </button>
-            <button type="button" class="btn btn-danger" id="btnConfirmarSim">
-              Confirmar
-            </button>
-          </div>
-        </div>
-      </div>
+    <!-- Card Saldo -->
+    <div class="bg-gradient-to-r from-brand-600 via-brand-700 to-indigo-800 rounded-2xl p-6 text-center text-white shadow-xl shadow-brand-600/20 mb-6">
+      <p class="text-sm text-white/70 uppercase tracking-wider font-medium">Saldo Atual</p>
+      <h1 class="text-4xl sm:text-5xl font-extrabold mt-1 tracking-tight" id="saldo-total">R$ 0,00</h1>
     </div>
 
-    <!-- Modal de Alerta Personalizado -->
-    <div class="modal fade" id="modalAlerta" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0">
-          <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title" id="tituloAlerta">Aviso</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body pt-2">
-            <p id="mensagemAlerta" class="mb-0"></p>
-          </div>
-          <div class="modal-footer border-0 gap-2 justify-content-end">
-            <button type="button" class="btn btn-primary" id="btnFecharAlerta" data-bs-dismiss="modal">
-              OK
-            </button>
-          </div>
-        </div>
+    <!-- Lista de Lançamentos -->
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Últimos Lançamentos</h3>
+    </div>
+    <div id="lista-lancamentos" class="space-y-2">
+      <div class="text-center py-8 text-gray-400">
+        <i class="bi bi-hourglass-split text-2xl"></i>
+        <p class="mt-2 text-sm">Carregando...</p>
       </div>
     </div>
+  </main>
 
-    <!-- Modal de Compartilhar Gasto -->
-    <div class="modal fade" id="modalCompartilhar" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Compartilhar Gasto</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  <!-- FAB -->
+  <button onclick="abrirModal('modalLancamento')"
+    class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-brand-500 to-brand-700 text-white rounded-2xl shadow-lg shadow-brand-600/40 hover:shadow-brand-500/60 flex items-center justify-center transition-all transform hover:scale-110 hover:rotate-90 z-30">
+    <i class="bi bi-plus-lg text-2xl"></i>
+  </button>
+
+  <!-- ============ MODAIS ============ -->
+
+  <!-- Modal: Novo Lançamento -->
+  <div id="modalLancamento" class="modal-overlay hidden">
+    <div class="modal-container max-w-md">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold">Novo Lançamento</h3>
+        <button onclick="fecharModal('modalLancamento')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5">
+        <form id="form-lancamento" class="space-y-4">
+          <input type="hidden" id="inputId" />
+          <div>
+            <label class="label-sm">Tipo de Lançamento</label>
+            <select id="inputTipo" onchange="ajustarFormulario()" class="input-field">
+              <option value="DESPESA" selected>🔴 Saída</option>
+              <option value="RECEITA">🟢 Extra</option>
+              <option value="SALARIO">💰 Salário Mensal</option>
+            </select>
           </div>
-          <div class="modal-body">
-            <input type="hidden" id="lancamentoCompartilharId">
-            <div class="mb-3">
-              <label class="form-label">Selecionar Usuário</label>
-              <select class="form-select" id="selectUsuarioCompartilhamento">
-                <option value="">Selecione um usuário...</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Tipo de Compartilhamento</label>
-              <select class="form-select" id="selectTipoCompartilhamento">
-                <option value="DIVISAO">Dividir custo</option>
-                <option value="EMPRESTIMO">Empréstimo</option>
-                <option value="REEMBOLSO">Reembolso</option>
-                <option value="INFORMATIVO">Apenas informar</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Descrição</label>
-              <textarea class="form-control" id="inputDescricaoCompartilhamento" rows="3" placeholder="Por que está compartilhando este gasto?"></textarea>
-            </div>
+          <div>
+            <label class="label-sm">Descrição</label>
+            <input type="text" id="inputDescricao" class="input-field" placeholder="Ex: Mercado, Luz..." required />
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="btnEnviarCompartilhamento">Compartilhar</button>
+          <div>
+            <label class="label-sm">Valor (R$)</label>
+            <input type="text" inputmode="numeric" id="inputValor" class="input-field" placeholder="0,00" required />
           </div>
-        </div>
+          <div>
+            <label class="label-sm">Data</label>
+            <input type="date" id="inputData" class="input-field" required />
+          </div>
+          <div id="categoriaContainer">
+            <label class="label-sm">Categoria</label>
+            <select id="inputCategoria" class="input-field" required>
+              <option value="">Selecione uma categoria</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <div class="relative">
+              <input type="checkbox" id="inputFixo" class="sr-only peer">
+              <div class="w-10 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer-checked:bg-brand-600 transition-colors"></div>
+              <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
+            </div>
+            <span class="text-sm text-gray-700 dark:text-gray-300">Repete todo mês? (Fixo)</span>
+          </label>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalLancamento')" class="btn-secondary">Cancelar</button>
+        <button id="btn-salvar" class="btn-primary">Salvar</button>
       </div>
     </div>
+  </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/parallax.js"></script>
-    <script src="js/app.js"></script>
-  </body>
+  <!-- Modal: Importação -->
+  <div id="modalImportacao" class="modal-overlay hidden">
+    <div class="modal-container max-w-md">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold">Importar Extrato</h3>
+        <button onclick="fecharModal('modalImportacao')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="bg-blue-50 dark:bg-blue-500/10 rounded-xl p-3 text-sm text-blue-700 dark:text-blue-300">
+          <p class="font-medium mb-1">Formatos aceitos: OFX ou CSV</p>
+          <p class="text-xs opacity-80"><strong>CSV:</strong> Data,Descrição,Valor,Tipo<br>Exemplo: 01/01/2024,Compra supermercado,150.50,DESPESA</p>
+        </div>
+        <div>
+          <label class="label-sm">Selecione o arquivo</label>
+          <input type="file" id="arquivoImportacao" accept=".ofx,.csv" class="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-brand-50 dark:file:bg-brand-500/10 file:text-brand-700 dark:file:text-brand-400 file:font-medium hover:file:bg-brand-100 dark:hover:file:bg-brand-500/20 cursor-pointer" />
+        </div>
+        <div id="progressoImportacao" class="hidden">
+          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+            <div class="bg-brand-600 h-full rounded-full animate-pulse w-full"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-1 text-center">Importando...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalImportacao')" class="btn-secondary">Cancelar</button>
+        <button id="btnImportar" class="btn-primary"><i class="bi bi-upload mr-1"></i> Importar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Perfil -->
+  <div id="modalPerfil" class="modal-overlay hidden">
+    <div class="modal-container max-w-md">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold">Editar Perfil</h3>
+        <button onclick="fecharModal('modalPerfil')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="text-center">
+          <img id="previewFotoPerfil" src="https://ui-avatars.com/api/?name=U&background=6366f1&color=fff" class="w-20 h-20 rounded-full mx-auto ring-4 ring-brand-500/20" alt="">
+        </div>
+        <div>
+          <label class="label-sm">Nome</label>
+          <input type="text" id="inputNomePerfil" class="input-field" placeholder="Seu nome">
+        </div>
+        <div>
+          <label class="label-sm">URL da Foto de Perfil</label>
+          <input type="text" id="inputFotoPerfil" class="input-field" placeholder="https://exemplo.com/foto.jpg">
+          <p class="text-xs text-gray-400 mt-1">Cole a URL de uma imagem ou use <a href="https://ui-avatars.com" target="_blank" class="text-brand-500 hover:underline">UI Avatars</a></p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalPerfil')" class="btn-secondary">Cancelar</button>
+        <button id="btnSalvarPerfil" class="btn-primary">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Notificações -->
+  <div id="modalNotificacoes" class="modal-overlay hidden">
+    <div class="modal-container max-w-lg">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold"><i class="bi bi-bell mr-2"></i>Gastos Compartilhados</h3>
+        <button onclick="fecharModal('modalNotificacoes')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5 max-h-[60vh] overflow-y-auto" id="listaNotificacoes">
+        <p class="text-center text-gray-400 py-4">Carregando...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Compartilhar Gasto -->
+  <div id="modalCompartilhar" class="modal-overlay hidden">
+    <div class="modal-container max-w-md">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold">Compartilhar Gasto</h3>
+        <button onclick="fecharModal('modalCompartilhar')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <input type="hidden" id="lancamentoCompartilharId">
+        <div>
+          <label class="label-sm">Selecionar Usuário</label>
+          <select id="selectUsuarioCompartilhamento" class="input-field">
+            <option value="">Selecione um usuário...</option>
+          </select>
+        </div>
+        <div>
+          <label class="label-sm">Tipo de Compartilhamento</label>
+          <select id="selectTipoCompartilhamento" class="input-field">
+            <option value="DIVISAO">Dividir custo</option>
+            <option value="EMPRESTIMO">Empréstimo</option>
+            <option value="REEMBOLSO">Reembolso</option>
+            <option value="INFORMATIVO">Apenas informar</option>
+          </select>
+        </div>
+        <div>
+          <label class="label-sm">Descrição</label>
+          <textarea id="inputDescricaoCompartilhamento" rows="3" class="input-field" placeholder="Por que está compartilhando este gasto?"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalCompartilhar')" class="btn-secondary">Cancelar</button>
+        <button id="btnEnviarCompartilhamento" class="btn-primary">Compartilhar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Orçamento -->
+  <div id="modalOrcamento" class="modal-overlay hidden">
+    <div class="modal-container max-w-sm">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold"><i class="bi bi-pie-chart mr-2"></i>Definir Orçamento</h3>
+        <button onclick="fecharModal('modalOrcamento')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="label-sm">Categoria</label>
+          <select id="inputOrcamentoCategoria" class="input-field">
+            <option value="">Selecione...</option>
+            <option value="LAZER">Lazer</option>
+            <option value="CASA">Casa</option>
+            <option value="ALIMENTACAO">Alimentação</option>
+            <option value="TRANSPORTE">Transporte</option>
+            <option value="SAÚDE">Saúde</option>
+            <option value="OUTROS">Outros</option>
+          </select>
+        </div>
+        <div>
+          <label class="label-sm">Limite Mensal (R$)</label>
+          <input type="number" step="0.01" id="inputOrcamentoLimite" class="input-field" placeholder="500,00">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalOrcamento')" class="btn-secondary">Cancelar</button>
+        <button id="btnSalvarOrcamento" class="btn-primary">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Meta de Economia -->
+  <div id="modalMeta" class="modal-overlay hidden">
+    <div class="modal-container max-w-sm">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold"><i class="bi bi-bullseye mr-2"></i>Nova Meta</h3>
+        <button onclick="fecharModal('modalMeta')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="label-sm">Nome da Meta</label>
+          <input type="text" id="inputMetaNome" class="input-field" placeholder="Ex: Viagem, Notebook...">
+        </div>
+        <div>
+          <label class="label-sm">Valor Objetivo (R$)</label>
+          <input type="number" step="0.01" id="inputMetaValor" class="input-field" placeholder="5000,00">
+        </div>
+        <div>
+          <label class="label-sm">Data Limite (opcional)</label>
+          <input type="date" id="inputMetaData" class="input-field">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalMeta')" class="btn-secondary">Cancelar</button>
+        <button id="btnSalvarMeta" class="btn-primary">Criar Meta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Tag -->
+  <div id="modalTag" class="modal-overlay hidden">
+    <div class="modal-container max-w-xs">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold"><i class="bi bi-tag mr-2"></i>Nova Tag</h3>
+        <button onclick="fecharModal('modalTag')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5">
+        <label class="label-sm">Nome da Tag</label>
+        <input type="text" id="inputTagNome" class="input-field" placeholder="Ex: viagem, urgente...">
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalTag')" class="btn-secondary">Cancelar</button>
+        <button id="btnCriarTag" class="btn-primary">Criar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmação -->
+  <div id="modalConfirmacao" class="modal-overlay hidden">
+    <div class="modal-container max-w-sm">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold" id="tituloConfirmacao">Confirmação</h3>
+        <button onclick="fecharModal('modalConfirmacao')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5">
+        <p id="mensagemConfirmacao" class="text-gray-600 dark:text-gray-300"></p>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalConfirmacao')" class="btn-secondary" id="btnConfirmarNao">Cancelar</button>
+        <button id="btnConfirmarSim" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-colors">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Alerta -->
+  <div id="modalAlerta" class="modal-overlay hidden">
+    <div class="modal-container max-w-sm">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold" id="tituloAlerta">Aviso</h3>
+        <button onclick="fecharModal('modalAlerta')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5">
+        <p id="mensagemAlerta" class="text-gray-600 dark:text-gray-300"></p>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalAlerta')" class="btn-primary" id="btnFecharAlerta">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
 </html>

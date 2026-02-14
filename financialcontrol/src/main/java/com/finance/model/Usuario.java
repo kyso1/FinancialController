@@ -32,6 +32,14 @@ public class Usuario {
 
     private String nome;
 
+    private String email;
+
+    private String googleId;
+
+    private String resetToken;
+
+    private LocalDateTime resetTokenExpiry;
+
     @Column(length = 1000)
     private String fotoPerfil;
 

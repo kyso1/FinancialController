@@ -3,7 +3,11 @@ package com.finance.controller;
 import com.finance.model.Lancamento;
 import com.finance.model.TipoLancamento;
 import com.finance.model.CategoriaLancamento;
+import com.finance.security.AuthHelper;
 import com.finance.service.LancamentoService;
+import com.finance.util.SanitizacaoUtil;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,14 +17,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/importacao")
-@CrossOrigin(origins = "*")
 public class ImportacaoController {
 
     @Autowired
@@ -30,57 +32,50 @@ public class ImportacaoController {
     private com.finance.repository.LancamentoRepository lancamentoRepository;
 
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadArquivo(@RequestParam("arquivo") MultipartFile arquivo,
-                                            @RequestParam("usuarioId") Long usuarioId) {
-        try {
-            String nomeArquivo = arquivo.getOriginalFilename();
-            List<Lancamento> lancamentos = new ArrayList<>();
+    public ResponseEntity<?> uploadArquivo(@RequestParam("arquivo") MultipartFile arquivo) {
+        Long usuarioId = AuthHelper.getUsuarioIdAutenticado();
 
+        String nomeArquivo = arquivo.getOriginalFilename();
+        List<Lancamento> lancamentos = new ArrayList<>();
+
+        try {
             if (nomeArquivo != null && nomeArquivo.toLowerCase().endsWith(".ofx")) {
                 lancamentos = processarOFX(arquivo, usuarioId);
             } else if (nomeArquivo != null && nomeArquivo.toLowerCase().endsWith(".csv")) {
                 lancamentos = processarCSV(arquivo, usuarioId);
             } else {
-                Map<String, String> erro = new HashMap<>();
-                erro.put("erro", "Formato de arquivo não suportado. Use OFX ou CSV.");
-                return ResponseEntity.badRequest().body(erro);
+                return ResponseEntity.badRequest().body(Map.of("erro", "Formato de arquivo não suportado. Use OFX ou CSV."));
             }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", "Erro ao processar arquivo: " + e.getMessage()));
+        }
 
-            // Processar parcelamentos e criar lançamentos futuros
-            List<Lancamento> todosLancamentos = new ArrayList<>();
-            for (Lancamento lancamento : lancamentos) {
-                // Verifica se já existe antes de adicionar
-                if (!verificarDuplicata(lancamento)) {
-                    todosLancamentos.add(lancamento);
+        // Processar parcelamentos e criar lançamentos futuros
+        List<Lancamento> todosLancamentos = new ArrayList<>();
+        for (Lancamento lancamento : lancamentos) {
+            if (!verificarDuplicata(lancamento)) {
+                todosLancamentos.add(lancamento);
 
-                    // Se tem parcelas futuras, criar os lançamentos
-                    if (lancamento.getParcelaAtual() != null && lancamento.getTotalParcelas() != null) {
-                        int parcelasRestantes = lancamento.getTotalParcelas() - lancamento.getParcelaAtual();
-                        if (parcelasRestantes > 0) {
-                            List<Lancamento> futuros = criarLancamentosFuturos(lancamento, parcelasRestantes);
-                            todosLancamentos.addAll(futuros);
-                        }
+                if (lancamento.getParcelaAtual() != null && lancamento.getTotalParcelas() != null) {
+                    int parcelasRestantes = lancamento.getTotalParcelas() - lancamento.getParcelaAtual();
+                    if (parcelasRestantes > 0) {
+                        List<Lancamento> futuros = criarLancamentosFuturos(lancamento, parcelasRestantes);
+                        todosLancamentos.addAll(futuros);
                     }
                 }
             }
-
-            // Salvar todos os lançamentos (incluindo futuros)
-            for (Lancamento lancamento : todosLancamentos) {
-                lancamentoService.salvar(lancamento);
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("mensagem", "Arquivo importado com sucesso!");
-            response.put("total", lancamentos.size());
-            response.put("totalComParcelas", todosLancamentos.size());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            Map<String, String> erro = new HashMap<>();
-            erro.put("erro", "Erro ao processar arquivo: " + e.getMessage());
-            return ResponseEntity.badRequest().body(erro);
         }
+
+        for (Lancamento lancamento : todosLancamentos) {
+            lancamentoService.salvar(lancamento);
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("mensagem", "Arquivo importado com sucesso!");
+        response.put("total", lancamentos.size());
+        response.put("totalComParcelas", todosLancamentos.size());
+
+        return ResponseEntity.ok(response);
     }
 
     private List<Lancamento> processarOFX(MultipartFile arquivo, Long usuarioId) throws Exception {
@@ -138,7 +133,7 @@ public class ImportacaoController {
 
                 // Extrai descrição
                 if (linha.contains("<MEMO>")) {
-                    String descricao = extrairValor(linha, "<MEMO>", "<");
+                    String descricao = SanitizacaoUtil.sanitizar(extrairValor(linha, "<MEMO>", "<"));
                     lancamentoAtual.setDescricao(descricao);
 
                     // Detecta parcelamento na descrição
@@ -153,72 +148,63 @@ public class ImportacaoController {
 
     private List<Lancamento> processarCSV(MultipartFile arquivo, Long usuarioId) throws Exception {
         List<Lancamento> lancamentos = new ArrayList<>();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(arquivo.getInputStream()));
 
-        String linha;
-        boolean primeiraLinha = true;
+        try (CSVReader reader = new CSVReaderBuilder(new InputStreamReader(arquivo.getInputStream()))
+                .withSkipLines(1) // Pula cabeçalho
+                .build()) {
 
-        while ((linha = reader.readLine()) != null) {
-            // Pula o cabeçalho
-            if (primeiraLinha) {
-                primeiraLinha = false;
-                continue;
-            }
+            String[] campos;
+            while ((campos = reader.readNext()) != null) {
 
-            String[] campos = linha.split(",");
+                if (campos.length >= 3) {
+                    Lancamento lancamento = new Lancamento();
+                    lancamento.setUsuarioId(usuarioId);
+                    lancamento.setFixo(false);
 
-            if (campos.length >= 3) {
-                Lancamento lancamento = new Lancamento();
-                lancamento.setUsuarioId(usuarioId);
-                lancamento.setFixo(false);
-
-                // Formato esperado: Data,Descrição,Valor[,Tipo]
-                // Data
-                try {
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-                    lancamento.setData(LocalDate.parse(campos[0].trim(), formatter));
-                } catch (Exception e) {
-                    // Tenta outro formato
+                    // Data
                     try {
-                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
                         lancamento.setData(LocalDate.parse(campos[0].trim(), formatter));
-                    } catch (Exception e2) {
-                        lancamento.setData(LocalDate.now());
+                    } catch (Exception e) {
+                        try {
+                            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                            lancamento.setData(LocalDate.parse(campos[0].trim(), formatter));
+                        } catch (Exception e2) {
+                            lancamento.setData(LocalDate.now());
+                        }
                     }
-                }
 
-                // Descrição
-                String descricao = campos[1].trim();
-                lancamento.setDescricao(descricao);
+                    // Descrição com sanitização
+                    String descricao = SanitizacaoUtil.sanitizar(campos[1].trim());
+                    lancamento.setDescricao(descricao);
 
-                // Detecta parcelamento na descrição
-                detectarParcelamento(lancamento, descricao);
+                    // Detecta parcelamento
+                    detectarParcelamento(lancamento, descricao);
 
-                // Valor - usa método inteligente que detecta formato
-                BigDecimal valor = parseValor(campos[2].trim());
-                lancamento.setValor(valor);
+                    // Valor
+                    BigDecimal valor = parseValor(campos[2].trim());
+                    lancamento.setValor(valor);
 
-                // Tipo (se fornecido)
-                if (campos.length >= 4) {
-                    String tipo = campos[3].trim().toUpperCase();
-                    if (tipo.contains("ENTRADA") || tipo.contains("RECEITA") || tipo.contains("CREDITO")) {
-                        lancamento.setTipo(TipoLancamento.RECEITA);
-                        lancamento.setCategoria(CategoriaLancamento.OUTRO_RECEITA);
+                    // Tipo
+                    if (campos.length >= 4) {
+                        String tipo = campos[3].trim().toUpperCase();
+                        if (tipo.contains("ENTRADA") || tipo.contains("RECEITA") || tipo.contains("CREDITO")) {
+                            lancamento.setTipo(TipoLancamento.RECEITA);
+                            lancamento.setCategoria(CategoriaLancamento.OUTRO_RECEITA);
+                        } else {
+                            lancamento.setTipo(TipoLancamento.DESPESA);
+                            lancamento.setCategoria(CategoriaLancamento.OUTROS);
+                        }
                     } else {
                         lancamento.setTipo(TipoLancamento.DESPESA);
                         lancamento.setCategoria(CategoriaLancamento.OUTROS);
                     }
-                } else {
-                    // Assume despesa se não especificado
-                    lancamento.setTipo(TipoLancamento.DESPESA);
-                    lancamento.setCategoria(CategoriaLancamento.OUTROS);
-                }
 
-                lancamentos.add(lancamento);
+                    lancamentos.add(lancamento);
+                }
             }
         }
 
-        reader.close();
         return lancamentos;
     }
 
@@ -265,11 +251,12 @@ public class ImportacaoController {
 
     /**
      * Detecta padrão de parcelamento no título (ex: "Compra Netflix - 11/12")
-     * Padrões suportados: "11/12", "1/2", etc.
+     * Padrões suportados: "Parc 11/12", "Parcela 1/2", "- 3/6" ou no final da string.
+     * Refinado para evitar falsos positivos como "1/2 kgs de carne".
      */
     private void detectarParcelamento(Lancamento lancamento, String descricao) {
-        // Padrão: busca por "número/número" isolado ou precedido por hífen, espaço, etc.
-        Pattern pattern = Pattern.compile("(\\d{1,2})/(\\d{1,2})(?:\\s|$)");
+        // Padrão refinado: exige que esteja no final da string, ou precedido por "Parc", "Parcela", hífen, etc.
+        Pattern pattern = Pattern.compile("(?:(?:Parc(?:ela)?\\s*)|(?:-\\s*)|(?:\\s))(\\d{1,2})/(\\d{1,2})\\s*$", Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(descricao);
 
         if (matcher.find()) {

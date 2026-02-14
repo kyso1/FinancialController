@@ -1,172 +1,241 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Login - Controle Financeiro</title>
-
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
-    />
-    <link rel="stylesheet" href="css/style.css" />
-    <style>
-      .login-container {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        z-index: 1;
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - Controle Financeiro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81' }
+          }
+        }
       }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .glass { background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.12); }
+    .input-glow:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.3); }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    .float-anim { animation: float 6s ease-in-out infinite; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    .fade-up { animation: fadeUp .5s ease-out forwards; }
+    .fade-up-delay { animation: fadeUp .5s ease-out .15s forwards; opacity: 0; }
+    .fade-up-delay2 { animation: fadeUp .5s ease-out .3s forwards; opacity: 0; }
+    /* Particles */
+    #particles { position:fixed;inset:0;z-index:0;pointer-events:none }
+    .particle { position:absolute;border-radius:50%;background:rgba(255,255,255,0.06);animation:floatParticle linear infinite }
+    @keyframes floatParticle { 0%{transform:translateY(100vh) scale(0);opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{transform:translateY(-10vh) scale(1);opacity:0} }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
 
-      .login-card {
-        width: 100%;
-        max-width: 400px;
-        backdrop-filter: blur(10px);
-        background-color: rgba(255, 255, 255, 0.9);
-        border-radius: 15px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      }
+  <!-- Partículas de fundo -->
+  <div id="particles"></div>
 
-      [data-theme="dark"] .login-card {
-        background-color: rgba(45, 45, 45, 0.9);
-      }
+  <!-- Conteúdo principal -->
+  <div class="relative z-10 w-full max-w-md">
+    <!-- Logo -->
+    <div class="text-center mb-8 fade-up">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-500/30 mb-4 float-anim">
+        <i class="bi bi-wallet2 text-white text-2xl"></i>
+      </div>
+      <h1 class="text-3xl font-bold text-white tracking-tight">Controle Financeiro</h1>
+      <p class="text-indigo-300/80 mt-2 text-sm">Gerencie suas finanças com inteligência</p>
+    </div>
 
-      .login-header {
-        text-align: center;
-        padding: 2rem;
-        border-bottom: 1px solid var(--border-color);
-      }
+    <!-- Card Glass -->
+    <div class="glass rounded-2xl shadow-2xl fade-up-delay">
+      <!-- Tabs -->
+      <div class="flex border-b border-white/10">
+        <button class="tab-btn flex-1 py-3.5 text-sm font-semibold text-white border-b-2 border-brand-500 transition-all" data-tab="login">
+          <i class="bi bi-box-arrow-in-right mr-1"></i> Entrar
+        </button>
+        <button class="tab-btn flex-1 py-3.5 text-sm font-semibold text-white/40 border-b-2 border-transparent hover:text-white/70 transition-all" data-tab="cadastro">
+          <i class="bi bi-person-plus mr-1"></i> Criar Conta
+        </button>
+      </div>
 
-      .login-header i {
-        font-size: 3rem;
-        color: var(--primary-color);
-      }
+      <!-- Tab: Login -->
+      <div class="tab-content p-6" id="tab-login">
+        <form id="form-login" class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">Usuário</label>
+            <div class="relative">
+              <i class="bi bi-person absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
+              <input type="text" id="login-username" required
+                class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="Digite seu usuário" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">Senha</label>
+            <div class="relative">
+              <i class="bi bi-lock absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
+              <input type="password" id="login-senha" required
+                class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="••••••••" />
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <button type="button" id="btnForgotPassword" class="text-xs text-brand-400 hover:text-brand-300 transition-colors">
+              Esqueceu a senha?
+            </button>
+          </div>
+          <button type="submit" id="btnLogin"
+            class="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white font-semibold py-3 rounded-xl shadow-lg shadow-brand-600/30 hover:shadow-brand-500/40 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+            <i class="bi bi-arrow-right-circle"></i> Entrar
+          </button>
+        </form>
 
-      .tab-content {
-        padding: 2rem;
-      }
+        <!-- Separador -->
+        <div class="flex items-center my-5">
+          <div class="flex-1 border-t border-white/10"></div>
+          <span class="px-4 text-white/30 text-xs uppercase tracking-wider">ou</span>
+          <div class="flex-1 border-t border-white/10"></div>
+        </div>
 
-      .nav-tabs {
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .nav-tabs .nav-link {
-        color: var(--text-secondary);
-        border: none;
-        border-bottom: 2px solid transparent;
-      }
-
-      .nav-tabs .nav-link:hover {
-        border-color: var(--border-color);
-      }
-
-      .nav-tabs .nav-link.active {
-        color: var(--primary-color);
-        background-color: transparent;
-        border-color: var(--primary-color);
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Canvas para animação de fundo -->
-    <canvas id="parallaxCanvas"></canvas>
-
-    <div class="login-container">
-      <div class="login-card">
-        <div class="login-header">
-          <i class="bi bi-cash-stack"></i>
-          <h3 class="mt-3">Controle Financeiro</h3>
-          <button class="theme-toggle position-absolute top-0 end-0 m-3" id="themeToggle" title="Alternar tema">
-            <i class="bi bi-moon-fill" id="themeIcon"></i>
+        <!-- Google Sign-In -->
+        <div id="googleBtnContainer" class="hidden">
+          <button type="button" id="btnGoogleLogin"
+            class="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+            <svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Continuar com Google
           </button>
         </div>
+        <p id="googleDisabledMsg" class="text-center text-white/20 text-xs mt-2 hidden">Login com Google não configurado</p>
+      </div>
 
-        <ul class="nav nav-tabs px-2 pt-2" role="tablist">
-          <li class="nav-item flex-fill" role="presentation">
-            <button class="nav-link active w-100" id="login-tab" data-bs-toggle="tab"
-              data-bs-target="#login" type="button" role="tab">
-              Login
-            </button>
-          </li>
-          <li class="nav-item flex-fill" role="presentation">
-            <button class="nav-link w-100" id="cadastro-tab" data-bs-toggle="tab"
-              data-bs-target="#cadastro" type="button" role="tab">
-              Cadastro
-            </button>
-          </li>
-        </ul>
-
-        <div class="tab-content">
-          <!-- Tab Login -->
-          <div class="tab-pane fade show active" id="login" role="tabpanel">
-            <form id="form-login">
-              <div class="mb-3">
-                <label class="form-label">Usuário</label>
-                <input type="text" class="form-control" id="login-username" required />
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Senha</label>
-                <input type="password" class="form-control" id="login-senha" required />
-              </div>
-              <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-box-arrow-in-right"></i> Entrar
-              </button>
-            </form>
+      <!-- Tab: Cadastro -->
+      <div class="tab-content p-6 hidden" id="tab-cadastro">
+        <form id="form-cadastro" class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">Usuário</label>
+            <div class="relative">
+              <i class="bi bi-person absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
+              <input type="text" id="cadastro-username" required
+                class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="Escolha um nome de usuário" />
+            </div>
           </div>
-
-          <!-- Tab Cadastro -->
-          <div class="tab-pane fade" id="cadastro" role="tabpanel">
-            <form id="form-cadastro">
-              <div class="mb-3">
-                <label class="form-label">Usuário</label>
-                <input type="text" class="form-control" id="cadastro-username" required />
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Senha</label>
-                <input type="password" class="form-control" id="cadastro-senha" required />
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Confirmar Senha</label>
-                <input type="password" class="form-control" id="cadastro-senha-confirma" required />
-              </div>
-              <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-person-plus"></i> Criar Conta
-              </button>
-            </form>
+          <div>
+            <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">E-mail <span class="text-white/20">(opcional)</span></label>
+            <div class="relative">
+              <i class="bi bi-envelope absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
+              <input type="email" id="cadastro-email"
+                class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="seu@email.com" />
+            </div>
           </div>
+          <div>
+            <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">Senha</label>
+            <div class="relative">
+              <i class="bi bi-lock absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
+              <input type="password" id="cadastro-senha" required minlength="6"
+                class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="Mínimo 6 caracteres" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">Confirmar Senha</label>
+            <div class="relative">
+              <i class="bi bi-shield-lock absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
+              <input type="password" id="cadastro-senha-confirma" required
+                class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="Repita a senha" />
+            </div>
+          </div>
+          <button type="submit" id="btnCadastro"
+            class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold py-3 rounded-xl shadow-lg shadow-emerald-600/30 hover:shadow-emerald-500/40 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+            <i class="bi bi-person-check"></i> Criar Minha Conta
+          </button>
+        </form>
+      </div>
+
+      <!-- Tab: Esqueceu a Senha -->
+      <div class="tab-content p-6 hidden" id="tab-forgot">
+        <div class="text-center mb-4">
+          <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 mb-3">
+            <i class="bi bi-key text-amber-400 text-xl"></i>
+          </div>
+          <h3 class="text-white font-semibold">Recuperar Senha</h3>
+          <p class="text-white/40 text-sm mt-1">Informe seu e-mail ou nome de usuário</p>
         </div>
+        <form id="form-forgot" class="space-y-4">
+          <div class="relative">
+            <i class="bi bi-envelope absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
+            <input type="text" id="forgot-input" required
+              class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-amber-500 input-glow transition-all" placeholder="E-mail ou nome de usuário" />
+          </div>
+          <button type="submit"
+            class="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold py-3 rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5">
+            <i class="bi bi-send mr-1"></i> Enviar Link de Recuperação
+          </button>
+          <button type="button" id="btnBackToLogin" class="w-full text-white/40 hover:text-white/70 text-sm py-2 transition-colors">
+            <i class="bi bi-arrow-left mr-1"></i> Voltar ao login
+          </button>
+        </form>
+        <div id="forgot-success" class="hidden text-center py-4">
+          <i class="bi bi-check-circle text-emerald-400 text-4xl"></i>
+          <p class="text-white mt-3 font-medium">Verifique seu e-mail!</p>
+          <p class="text-white/40 text-sm mt-1">Se o usuário existir, um link de recuperação foi enviado.</p>
+          <button type="button" id="btnBackToLogin2" class="mt-4 text-brand-400 hover:text-brand-300 text-sm transition-colors">
+            <i class="bi bi-arrow-left mr-1"></i> Voltar ao login
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab: Redefinir Senha (via token na URL) -->
+      <div class="tab-content p-6 hidden" id="tab-reset">
+        <div class="text-center mb-4">
+          <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/10 mb-3">
+            <i class="bi bi-shield-check text-emerald-400 text-xl"></i>
+          </div>
+          <h3 class="text-white font-semibold">Nova Senha</h3>
+          <p class="text-white/40 text-sm mt-1">Defina sua nova senha</p>
+        </div>
+        <form id="form-reset" class="space-y-4">
+          <input type="hidden" id="reset-token" />
+          <div class="relative">
+            <i class="bi bi-lock absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
+            <input type="password" id="reset-senha" required minlength="6"
+              class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-emerald-500 input-glow transition-all" placeholder="Nova senha (mín. 6 caracteres)" />
+          </div>
+          <div class="relative">
+            <i class="bi bi-shield-lock absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
+            <input type="password" id="reset-senha-confirma" required
+              class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-emerald-500 input-glow transition-all" placeholder="Confirme a nova senha" />
+          </div>
+          <button type="submit"
+            class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-semibold py-3 rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5">
+            <i class="bi bi-check-lg mr-1"></i> Redefinir Senha
+          </button>
+        </form>
       </div>
     </div>
 
-    <!-- Modal de Alerta Personalizado -->
-    <div class="modal fade" id="modalAlerta" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0">
-          <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title" id="tituloAlerta">Aviso</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body pt-2">
-            <p id="mensagemAlerta" class="mb-0"></p>
-          </div>
-          <div class="modal-footer border-0 gap-2 justify-content-end">
-            <button type="button" class="btn btn-primary" id="btnFecharAlerta" data-bs-dismiss="modal">
-              OK
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <p class="text-center text-white/20 text-xs mt-6 fade-up-delay2">&copy; 2024 Controle Financeiro</p>
+  </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/parallax.js"></script>
-    <script src="js/login.js"></script>
-  </body>
+  <!-- Toast de notificação -->
+  <div id="toast" class="fixed top-4 right-4 z-50 hidden transform translate-x-full transition-transform duration-300">
+    <div class="rounded-xl shadow-2xl px-5 py-3 flex items-center gap-3 min-w-[280px]" id="toastBody">
+      <i class="text-xl" id="toastIcon"></i>
+      <div>
+        <p class="font-semibold text-sm" id="toastTitle"></p>
+        <p class="text-xs opacity-80" id="toastMsg"></p>
+      </div>
+      <button onclick="fecharToast()" class="ml-auto opacity-60 hover:opacity-100 transition-opacity">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="js/login.js"></script>
+</body>
 </html>

@@ -29,6 +29,9 @@ public class GastoCompartilhado {
 
     private LocalDateTime dataCompartilhamento;
 
+    @Version
+    private Long versao;
+
     @PrePersist
     protected void onCreate() {
         dataCompartilhamento = LocalDateTime.now();

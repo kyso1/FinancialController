@@ -1,31 +1,78 @@
 const API_URL = '/api/lancamentos';
-
 let chartMeses, chartCategoriasDespesas, chartCategoriasReceitas, chartGastosFuturos;
 let usuarioId = null;
 
+// ===== AUTH HELPERS =====
+function authHeaders() {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
+function authAjax(options) {
+    options.headers = Object.assign({}, options.headers || {}, authHeaders());
+    const originalError = options.error;
+    options.error = function(xhr) {
+        if (xhr.status === 401 || xhr.status === 403) {
+            localStorage.clear();
+            window.location.href = 'login.html';
+            return;
+        }
+        if (originalError) originalError(xhr);
+    };
+    return $.ajax(options);
+}
+
+// ===== MODAIS =====
+function abrirModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    setTimeout(() => {
+        const c = modal.querySelector('.modal-container');
+        if (c) { c.classList.remove('scale-95', 'opacity-0'); c.classList.add('scale-100', 'opacity-100'); }
+    }, 10);
+}
+window.abrirModal = abrirModal;
+
+function fecharModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    const c = modal.querySelector('.modal-container');
+    if (c) { c.classList.remove('scale-100', 'opacity-100'); c.classList.add('scale-95', 'opacity-0'); }
+    setTimeout(() => { modal.classList.add('hidden'); document.body.classList.remove('overflow-hidden'); }, 150);
+}
+window.fecharModal = fecharModal;
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal-overlay')) fecharModal(e.target.id);
+});
+
+document.addEventListener('click', function(e) {
+    document.querySelectorAll('[id$="DropdownMenu"]').forEach(menu => {
+        const container = menu.closest('[id$="DropdownContainer"]') || menu.parentElement;
+        if (!container.contains(e.target)) menu.classList.add('hidden');
+    });
+});
+
+function toggleDropdown(id) {
+    const menu = document.getElementById(id);
+    if (menu) menu.classList.toggle('hidden');
+}
+window.toggleDropdown = toggleDropdown;
+
+// ===== INIT =====
 $(document).ready(function() {
-    // Verifica autenticação
+    const token = localStorage.getItem('token');
     usuarioId = localStorage.getItem('userId');
-    if (!usuarioId) {
-        window.location.href = 'login.html';
-        return;
-    }
+    if (!token || !usuarioId) { window.location.href = 'login.html'; return; }
 
-    // Carrega dados do perfil
     carregarPerfil();
-
-    // Carrega notificações pendentes
     carregarNotificacoesPendentes();
-
-    // Inicializa o tema
     initTheme();
 
-    // Toggle de tema
-    $('#themeToggle').click(function() {
-        toggleTheme();
-    });
+    $('#themeToggle').click(toggleTheme);
 
-    // Logout
     $('#btnLogout').click(function(e) {
         e.preventDefault();
         mostrarConfirmacao('Sair', 'Deseja realmente sair?', function() {
@@ -34,356 +81,190 @@ $(document).ready(function() {
         });
     });
 
-    // Carrega os dados do dashboard
     carregarDashboard();
 });
 
-// ===== FUNÇÕES DE TEMA =====
+// ===== TEMA =====
 function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
+    let saved = localStorage.getItem('theme');
+    if (!saved) {
+        saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        localStorage.setItem('theme', saved);
+    }
+    applyTheme(saved);
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+        if (!localStorage.getItem('themeManual')) {
+            const t = e.matches ? 'dark' : 'light';
+            localStorage.setItem('theme', t);
+            applyTheme(t);
+            atualizarCoresGraficos();
+        }
+    });
 }
 
 function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeIcon(newTheme);
-
-    // Atualiza os gráficos com as cores do novo tema
+    const current = localStorage.getItem('theme') || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    localStorage.setItem('themeManual', 'true');
+    applyTheme(next);
     atualizarCoresGraficos();
+}
+
+function applyTheme(theme) {
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+    updateThemeIcon(theme);
 }
 
 function updateThemeIcon(theme) {
     const icon = $('#themeIcon');
-    if (theme === 'dark') {
-        icon.removeClass('bi-moon-fill').addClass('bi-sun-fill');
-    } else {
-        icon.removeClass('bi-sun-fill').addClass('bi-moon-fill');
-    }
+    if (theme === 'dark') icon.removeClass('bi-moon-fill').addClass('bi-sun-fill');
+    else icon.removeClass('bi-sun-fill').addClass('bi-moon-fill');
 }
 
-// ===== FUNÇÕES DO DASHBOARD =====
+// ===== DASHBOARD =====
 function carregarDashboard() {
-    $.ajax({
-        url: API_URL,
-        method: 'GET',
-        data: { usuarioId: usuarioId },
-        success: function(lancamentos) {
-            processarDados(lancamentos);
-        },
-        error: function(err) {
-            console.error("Erro ao carregar dados:", err);
-            if (err.status === 401) {
-                localStorage.removeItem('userId');
-                window.location.href = 'login.html';
-            }
-        }
+    authAjax({
+        url: API_URL, method: 'GET',
+        success: function(lancamentos) { processarDados(lancamentos); },
+        error: function() { console.error('Erro ao carregar dados'); }
     });
 }
 
 function processarDados(lancamentos) {
-    // Filtra apenas lançamentos do mês atual
     const hoje = new Date();
     const mesAtual = hoje.getMonth();
     const anoAtual = hoje.getFullYear();
 
-    const lancamentosMesAtual = lancamentos.filter(item => {
-        const dataItem = new Date(item.data);
-        return dataItem.getMonth() === mesAtual && dataItem.getFullYear() === anoAtual;
+    const lancamentosMes = lancamentos.filter(item => {
+        const d = new Date(item.data);
+        return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
     });
 
-    // Calcular saldo, receitas e despesas do mês atual
-    let saldo = 0;
-    let totalReceitas = 0;
-    let totalDespesas = 0;
-
-    lancamentosMesAtual.forEach(item => {
-        if (item.tipo === 'RECEITA') {
-            saldo += item.valor;
-            totalReceitas += item.valor;
-        } else {
-            saldo -= item.valor;
-            totalDespesas += item.valor;
-        }
+    let saldo = 0, totalReceitas = 0, totalDespesas = 0;
+    lancamentosMes.forEach(item => {
+        if (item.tipo === 'RECEITA') { saldo += item.valor; totalReceitas += item.valor; }
+        else { saldo -= item.valor; totalDespesas += item.valor; }
     });
 
-    // Atualizar cards
     $('#saldo-atual').text(formatarMoeda(saldo));
     $('#total-receitas').text(formatarMoeda(totalReceitas));
     $('#total-despesas').text(formatarMoeda(totalDespesas));
 
-    // Mudar cor do saldo se negativo
     if (saldo < 0) {
-        $('#saldo-atual').removeClass('text-success').addClass('text-danger');
+        $('#saldo-atual').removeClass('text-emerald-600 dark:text-emerald-400').addClass('text-red-600 dark:text-red-400');
     } else {
-        $('#saldo-atual').removeClass('text-danger').addClass('text-success');
+        $('#saldo-atual').removeClass('text-red-600 dark:text-red-400').addClass('text-emerald-600 dark:text-emerald-400');
     }
 
-    // Preparar dados para os gráficos
     prepararGraficoMeses(lancamentos);
     prepararGraficoCategorias(lancamentos);
     prepararGraficoGastosFuturos(lancamentos);
 }
 
+// ===== GRÁFICOS =====
+function getChartColors() {
+    const isDark = document.documentElement.classList.contains('dark');
+    return {
+        text: isDark ? '#d1d5db' : '#374151',
+        grid: isDark ? '#374151' : '#e5e7eb',
+        cardBg: isDark ? '#111827' : '#ffffff'
+    };
+}
+
 function prepararGraficoMeses(lancamentos) {
     const hoje = new Date();
-    const mesAtual = hoje.getMonth();
-    const anoAtual = hoje.getFullYear();
-
-    // Mês atual e anterior
-    const meses = [];
-    const dadosDespesas = [];
-    const dadosReceitas = [];
+    const mesesData = [];
+    const despesasData = [];
+    const receitasData = [];
 
     for (let i = 1; i >= 0; i--) {
-        const mes = new Date(anoAtual, mesAtual - i, 1);
-        const nomeMes = mes.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-        meses.push(nomeMes);
-
-        let despesasMes = 0;
-        let receitasMes = 0;
-
+        const mes = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        mesesData.push(mes.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }));
+        let d = 0, r = 0;
         lancamentos.forEach(item => {
-            const dataItem = new Date(item.data);
-            if (dataItem.getMonth() === mes.getMonth() && dataItem.getFullYear() === mes.getFullYear()) {
-                if (item.tipo === 'DESPESA') {
-                    despesasMes += item.valor;
-                } else {
-                    receitasMes += item.valor;
-                }
+            const di = new Date(item.data);
+            if (di.getMonth() === mes.getMonth() && di.getFullYear() === mes.getFullYear()) {
+                if (item.tipo === 'DESPESA') d += item.valor; else r += item.valor;
             }
         });
-
-        dadosDespesas.push(despesasMes);
-        dadosReceitas.push(receitasMes);
+        despesasData.push(d);
+        receitasData.push(r);
     }
 
-    criarGraficoMeses(meses, dadosDespesas, dadosReceitas);
+    criarGraficoLinha(mesesData, despesasData, receitasData);
 }
 
-function prepararGraficoCategorias(lancamentos) {
-    const categoriasDespesas = {};
-    const categoriasReceitas = {};
-
-    const labelsCategorias = {
-        'LAZER': 'Lazer',
-        'CASA': 'Casa',
-        'ALIMENTACAO': 'Alimentação',
-        'TRANSPORTE': 'Transporte',
-        'SAÚDE': 'Saúde',
-        'OUTROS': 'Outros',
-        'FREELANCE': 'Freelance',
-        'VENDA': 'Venda',
-        'INVESTIMENTO': 'Investimento',
-        'OUTRO_RECEITA': 'Outro',
-        'SALARIO': 'Salário'
-    };
-
-    lancamentos.forEach(item => {
-        if (item.categoria) {
-            if (item.tipo === 'DESPESA') {
-                categoriasDespesas[item.categoria] = (categoriasDespesas[item.categoria] || 0) + item.valor;
-            } else {
-                categoriasReceitas[item.categoria] = (categoriasReceitas[item.categoria] || 0) + item.valor;
-            }
-        }
-    });
-
-    // Converter para arrays
-    const labelsDespesas = [];
-    const dadosDespesas = [];
-    Object.keys(categoriasDespesas).forEach(key => {
-        labelsDespesas.push(labelsCategorias[key] || key);
-        dadosDespesas.push(categoriasDespesas[key]);
-    });
-
-    const labelsReceitas = [];
-    const dadosReceitas = [];
-    Object.keys(categoriasReceitas).forEach(key => {
-        labelsReceitas.push(labelsCategorias[key] || key);
-        dadosReceitas.push(categoriasReceitas[key]);
-    });
-
-    criarGraficoCategoriasDespesas(labelsDespesas, dadosDespesas);
-    criarGraficoCategoriasReceitas(labelsReceitas, dadosReceitas);
-}
-
-// ===== CRIAÇÃO DOS GRÁFICOS =====
-function criarGraficoMeses(labels, dadosDespesas, dadosReceitas) {
-    const ctx = document.getElementById('chartMeses').getContext('2d');
-
-    if (chartMeses) {
-        chartMeses.destroy();
-    }
-
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const textColor = isDark ? '#e9ecef' : '#212529';
-    const gridColor = isDark ? '#495057' : '#dee2e6';
+function criarGraficoLinha(labels, despesas, receitas) {
+    const ctx = document.getElementById('chartMeses');
+    if (!ctx) return;
+    if (chartMeses) chartMeses.destroy();
+    const c = getChartColors();
 
     chartMeses = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
+            labels,
             datasets: [
-                {
-                    label: 'Despesas',
-                    data: dadosDespesas,
-                    borderColor: '#dc3545',
-                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: 'Receitas',
-                    data: dadosReceitas,
-                    borderColor: '#28a745',
-                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }
+                { label: 'Despesas', data: despesas, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.4, fill: true },
+                { label: 'Receitas', data: receitas, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.4, fill: true }
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    labels: {
-                        color: textColor
-                    }
-                }
-            },
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { labels: { color: c.text, usePointStyle: true, pointStyle: 'circle' } } },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: textColor,
-                        callback: function(value) {
-                            return 'R$ ' + value.toLocaleString('pt-BR');
-                        }
-                    },
-                    grid: {
-                        color: gridColor
-                    }
-                },
-                x: {
-                    ticks: {
-                        color: textColor
-                    },
-                    grid: {
-                        color: gridColor
-                    }
-                }
+                y: { beginAtZero: true, ticks: { color: c.text, callback: v => 'R$ ' + v.toLocaleString('pt-BR') }, grid: { color: c.grid } },
+                x: { ticks: { color: c.text }, grid: { color: c.grid } }
             }
         }
     });
 }
 
-function criarGraficoCategoriasDespesas(labels, dados) {
-    const ctx = document.getElementById('chartCategoriasDespesas').getContext('2d');
+function prepararGraficoCategorias(lancamentos) {
+    const catDespesas = {}, catReceitas = {};
+    const labelsMap = {
+        'LAZER':'Lazer','CASA':'Casa','ALIMENTACAO':'Alimentação','TRANSPORTE':'Transporte',
+        'SAÚDE':'Saúde','OUTROS':'Outros','FREELANCE':'Freelance','VENDA':'Venda',
+        'INVESTIMENTO':'Investimento','OUTRO_RECEITA':'Outro','SALARIO':'Salário'
+    };
 
-    if (chartCategoriasDespesas) {
-        chartCategoriasDespesas.destroy();
-    }
-
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const textColor = isDark ? '#e9ecef' : '#212529';
-
-    const cores = [
-        '#dc3545',
-        '#fd7e14',
-        '#ffc107',
-        '#20c997',
-        '#17a2b8',
-        '#6f42c1'
-    ];
-
-    chartCategoriasDespesas = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: dados,
-                backgroundColor: cores.slice(0, dados.length),
-                borderWidth: 2,
-                borderColor: isDark ? '#2d2d2d' : '#ffffff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: textColor
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            return label + ': ' + formatarMoeda(value);
-                        }
-                    }
-                }
-            }
-        }
+    lancamentos.forEach(item => {
+        if (!item.categoria) return;
+        if (item.tipo === 'DESPESA') catDespesas[item.categoria] = (catDespesas[item.categoria] || 0) + item.valor;
+        else catReceitas[item.categoria] = (catReceitas[item.categoria] || 0) + item.valor;
     });
+
+    const lD = [], dD = [];
+    Object.keys(catDespesas).forEach(k => { lD.push(labelsMap[k] || k); dD.push(catDespesas[k]); });
+
+    const lR = [], dR = [];
+    Object.keys(catReceitas).forEach(k => { lR.push(labelsMap[k] || k); dR.push(catReceitas[k]); });
+
+    criarGraficoPizza('chartCategoriasDespesas', lD, dD, ['#ef4444','#f97316','#eab308','#14b8a6','#06b6d4','#8b5cf6'], 'chartCategoriasDespesas');
+    criarGraficoPizza('chartCategoriasReceitas', lR, dR, ['#10b981','#14b8a6','#06b6d4','#3b82f6'], 'chartCategoriasReceitas');
 }
 
-function criarGraficoCategoriasReceitas(labels, dados) {
-    const ctx = document.getElementById('chartCategoriasReceitas').getContext('2d');
+function criarGraficoPizza(canvasId, labels, dados, cores, varName) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    if (window[varName]) window[varName].destroy();
+    const c = getChartColors();
 
-    if (chartCategoriasReceitas) {
-        chartCategoriasReceitas.destroy();
-    }
-
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const textColor = isDark ? '#e9ecef' : '#212529';
-
-    const cores = [
-        '#28a745',
-        '#20c997',
-        '#17a2b8',
-        '#007bff'
-    ];
-
-    chartCategoriasReceitas = new Chart(ctx, {
-        type: 'pie',
+    window[varName] = new Chart(ctx, {
+        type: 'doughnut',
         data: {
-            labels: labels,
-            datasets: [{
-                data: dados,
-                backgroundColor: cores.slice(0, dados.length),
-                borderWidth: 2,
-                borderColor: isDark ? '#2d2d2d' : '#ffffff'
-            }]
+            labels,
+            datasets: [{ data: dados, backgroundColor: cores.slice(0, dados.length), borderWidth: 2, borderColor: c.cardBg }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: true,
+            responsive: true, maintainAspectRatio: true,
+            cutout: '60%',
             plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: textColor
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            return label + ': ' + formatarMoeda(value);
-                        }
-                    }
-                }
+                legend: { position: 'bottom', labels: { color: c.text, usePointStyle: true, pointStyle: 'circle', padding: 15 } },
+                tooltip: { callbacks: { label: ctx => `${ctx.label}: ${formatarMoeda(ctx.parsed)}` } }
             }
         }
     });
@@ -394,196 +275,125 @@ function prepararGraficoGastosFuturos(lancamentos) {
     const mesAtual = hoje.getMonth();
     const anoAtual = hoje.getFullYear();
 
-    // Filtra apenas lançamentos futuros com parcelamento
-    const lancamentosFuturos = lancamentos.filter(item => {
-        const dataItem = new Date(item.data);
-        // Considera como futuro se for do mês seguinte em diante
-        return dataItem > hoje && item.totalParcelas && item.parcelaAtual;
+    const futuros = lancamentos.filter(i => {
+        const d = new Date(i.data);
+        return d > hoje && i.totalParcelas && i.parcelaAtual;
     });
 
-    // Se não tem gastos futuros, não mostra o gráfico
-    if (lancamentosFuturos.length === 0) {
-        criarGraficoGastosFuturos([], []);
+    if (futuros.length === 0) {
+        criarGraficoBarras([], []);
         return;
     }
 
-    // Encontra o maior número de meses futuros (baseado na última data)
-    let maiorMes = mesAtual + 1; // pelo menos o próximo mês
-    lancamentosFuturos.forEach(item => {
-        const dataItem = new Date(item.data);
-        const mesesDiferenca = (dataItem.getFullYear() - anoAtual) * 12 + (dataItem.getMonth() - mesAtual);
-        if (mesesDiferenca > (maiorMes - mesAtual - 1)) {
-            maiorMes = mesAtual + mesesDiferenca + 1;
-        }
+    let maxMes = mesAtual + 1;
+    futuros.forEach(i => {
+        const d = new Date(i.data);
+        const diff = (d.getFullYear() - anoAtual) * 12 + (d.getMonth() - mesAtual);
+        if (diff > (maxMes - mesAtual - 1)) maxMes = mesAtual + diff + 1;
     });
 
-    // Cria array de meses futuros
-    const meses = [];
-    const dadosGastos = [];
-    const numeroMesesFuturos = Math.min(12, maiorMes - mesAtual); // Máximo 12 meses
-
-    for (let i = 1; i <= numeroMesesFuturos; i++) {
+    const meses = [], dados = [];
+    const numMeses = Math.min(12, maxMes - mesAtual);
+    for (let i = 1; i <= numMeses; i++) {
         const mes = new Date(anoAtual, mesAtual + i, 1);
-        const nomeMes = mes.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
-        meses.push(nomeMes);
-
-        // Soma os gastos deste mês
-        let gastosMes = 0;
-        lancamentosFuturos.forEach(item => {
-            const dataItem = new Date(item.data);
-            if (dataItem.getMonth() === mes.getMonth() && dataItem.getFullYear() === mes.getFullYear()) {
-                if (item.tipo === 'DESPESA') {
-                    gastosMes += item.valor;
-                }
-            }
+        meses.push(mes.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }));
+        let g = 0;
+        futuros.forEach(item => {
+            const d = new Date(item.data);
+            if (d.getMonth() === mes.getMonth() && d.getFullYear() === mes.getFullYear() && item.tipo === 'DESPESA') g += item.valor;
         });
-
-        dadosGastos.push(gastosMes);
+        dados.push(g);
     }
 
-    criarGraficoGastosFuturos(meses, dadosGastos);
+    criarGraficoBarras(meses, dados);
 }
 
-function criarGraficoGastosFuturos(labels, dados) {
-    const ctx = document.getElementById('chartGastosFuturos').getContext('2d');
+function criarGraficoBarras(labels, dados) {
+    const ctx = document.getElementById('chartGastosFuturos');
+    if (!ctx) return;
+    if (chartGastosFuturos) chartGastosFuturos.destroy();
+    const c = getChartColors();
 
-    if (chartGastosFuturos) {
-        chartGastosFuturos.destroy();
-    }
-
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const textColor = isDark ? '#e9ecef' : '#212529';
-    const gridColor = isDark ? '#495057' : '#dee2e6';
-
-    // Se não tem dados, mostra mensagem
     if (dados.length === 0 || dados.every(d => d === 0)) {
-        ctx.font = '16px Arial';
-        ctx.fillStyle = textColor;
-        ctx.textAlign = 'center';
-        ctx.fillText('Nenhum gasto futuro parcelado encontrado', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        const context = ctx.getContext('2d');
+        context.font = '14px Inter, system-ui, sans-serif';
+        context.fillStyle = c.text;
+        context.textAlign = 'center';
+        context.fillText('Nenhum gasto futuro parcelado', ctx.width / 2, ctx.height / 2);
         return;
     }
 
     chartGastosFuturos = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels,
             datasets: [{
                 label: 'Gastos Futuros',
                 data: dados,
-                backgroundColor: 'rgba(255, 193, 7, 0.6)',
-                borderColor: '#ffc107',
-                borderWidth: 2
+                backgroundColor: 'rgba(245,158,11,0.5)',
+                borderColor: '#f59e0b',
+                borderWidth: 2,
+                borderRadius: 8
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: true,
+            responsive: true, maintainAspectRatio: true,
             plugins: {
-                legend: {
-                    labels: {
-                        color: textColor
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return 'Gastos: ' + formatarMoeda(context.parsed.y);
-                        }
-                    }
-                }
+                legend: { labels: { color: c.text } },
+                tooltip: { callbacks: { label: ctx => 'Gastos: ' + formatarMoeda(ctx.parsed.y) } }
             },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: textColor,
-                        callback: function(value) {
-                            return 'R$ ' + value.toLocaleString('pt-BR');
-                        }
-                    },
-                    grid: {
-                        color: gridColor
-                    }
-                },
-                x: {
-                    ticks: {
-                        color: textColor
-                    },
-                    grid: {
-                        color: gridColor
-                    }
-                }
+                y: { beginAtZero: true, ticks: { color: c.text, callback: v => 'R$ ' + v.toLocaleString('pt-BR') }, grid: { color: c.grid } },
+                x: { ticks: { color: c.text }, grid: { color: c.grid } }
             }
         }
     });
 }
 
-function atualizarCoresGraficos() {
-    // Recarrega o dashboard para atualizar as cores dos gráficos
-    carregarDashboard();
-}
+function atualizarCoresGraficos() { carregarDashboard(); }
 
-// ===== UTILITÁRIOS =====
+// ===== UTILS =====
 function formatarMoeda(valor) {
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-// ===== FUNÇÕES DE PERFIL =====
+// ===== PERFIL =====
 function carregarPerfil() {
-    $.ajax({
-        url: `/api/auth/perfil/${usuarioId}`,
-        method: 'GET',
+    authAjax({
+        url: '/api/auth/perfil', method: 'GET',
         success: function(data) {
             const nome = data.nome || data.username;
-            const fotoPerfil = data.fotoPerfil || `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=random`;
-
+            const foto = data.fotoPerfil || `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=6366f1&color=fff`;
             $('#nomeUsuarioNav').text(nome);
-            $('#fotoPerfilNav').attr('src', fotoPerfil);
-        },
-        error: function() {
-            console.error('Erro ao carregar perfil');
+            $('#fotoPerfilNav').attr('src', foto);
         }
     });
 }
 
 function carregarNotificacoesPendentes() {
-    $.ajax({
-        url: `/api/compartilhamento/pendentes/${usuarioId}`,
-        method: 'GET',
+    authAjax({
+        url: '/api/compartilhamento/pendentes', method: 'GET',
         success: function(pendentes) {
             const badge = $('#badgeNotificacoes');
-            if (pendentes.length > 0) {
-                badge.text(pendentes.length).removeClass('d-none');
-            } else {
-                badge.addClass('d-none');
-            }
+            if (pendentes.length > 0) badge.text(pendentes.length).removeClass('hidden');
+            else badge.addClass('hidden');
         }
     });
 }
-// ===== FUNÇÕES DE MODAIS PERSONALIZADOS =====
+
+// ===== MODAIS REUTILIZÁVEIS =====
 function mostrarConfirmacao(titulo, mensagem, callback) {
     $('#tituloConfirmacao').text(titulo);
     $('#mensagemConfirmacao').text(mensagem);
-    
-    // Remove listeners antigos
-    $('#btnConfirmarSim').off('click');
-    
-    // Adiciona novo listener
-    $('#btnConfirmarSim').on('click', function() {
-        $('#modalConfirmacao').modal('hide');
+    $('#btnConfirmarSim').off('click').on('click', function() {
+        fecharModal('modalConfirmacao');
         callback();
     });
-    
-    // Mostra modal
-    const modal = new bootstrap.Modal(document.getElementById('modalConfirmacao'));
-    modal.show();
+    abrirModal('modalConfirmacao');
 }
 
 function mostrarAlerta(titulo, mensagem) {
     $('#tituloAlerta').text(titulo);
     $('#mensagemAlerta').text(mensagem);
-    
-    const modal = new bootstrap.Modal(document.getElementById('modalAlerta'));
-    modal.show();
+    abrirModal('modalAlerta');
 }

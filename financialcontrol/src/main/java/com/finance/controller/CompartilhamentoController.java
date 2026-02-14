@@ -3,7 +3,9 @@ package com.finance.controller;
 import com.finance.model.*;
 import com.finance.repository.GastoCompartilhadoRepository;
 import com.finance.repository.LancamentoRepository;
+import com.finance.security.AuthHelper;
 import com.finance.service.LancamentoService;
+import com.finance.util.SanitizacaoUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +14,6 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/compartilhamento")
-@CrossOrigin(origins = "*")
 public class CompartilhamentoController {
 
     @Autowired
@@ -26,30 +27,27 @@ public class CompartilhamentoController {
 
     @PostMapping
     public ResponseEntity<?> compartilhar(@RequestBody Map<String, Object> dados) {
-        try {
-            Long lancamentoId = Long.valueOf(dados.get("lancamentoId").toString());
-            Long usuarioOrigemId = Long.valueOf(dados.get("usuarioOrigemId").toString());
-            Long usuarioDestinoId = Long.valueOf(dados.get("usuarioDestinoId").toString());
-            String descricao = dados.get("descricao").toString();
-            String tipoStr = dados.get("tipo").toString();
+        Long usuarioOrigemId = AuthHelper.getUsuarioIdAutenticado();
+        Long lancamentoId = Long.valueOf(dados.get("lancamentoId").toString());
+        Long usuarioDestinoId = Long.valueOf(dados.get("usuarioDestinoId").toString());
+        String descricao = SanitizacaoUtil.sanitizar(dados.get("descricao").toString());
+        String tipoStr = dados.get("tipo").toString();
 
-            GastoCompartilhado compartilhamento = new GastoCompartilhado();
-            compartilhamento.setLancamentoId(lancamentoId);
-            compartilhamento.setUsuarioOrigemId(usuarioOrigemId);
-            compartilhamento.setUsuarioDestinoId(usuarioDestinoId);
-            compartilhamento.setDescricaoCompartilhamento(descricao);
-            compartilhamento.setTipoCompartilhamento(TipoCompartilhamento.valueOf(tipoStr));
+        GastoCompartilhado compartilhamento = new GastoCompartilhado();
+        compartilhamento.setLancamentoId(lancamentoId);
+        compartilhamento.setUsuarioOrigemId(usuarioOrigemId);
+        compartilhamento.setUsuarioDestinoId(usuarioDestinoId);
+        compartilhamento.setDescricaoCompartilhamento(descricao);
+        compartilhamento.setTipoCompartilhamento(TipoCompartilhamento.valueOf(tipoStr));
 
-            compartilhamentoRepository.save(compartilhamento);
+        compartilhamentoRepository.save(compartilhamento);
 
-            return ResponseEntity.ok(Map.of("mensagem", "Gasto compartilhado com sucesso!"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of("mensagem", "Gasto compartilhado com sucesso!"));
     }
 
-    @GetMapping("/pendentes/{usuarioId}")
-    public ResponseEntity<?> listarPendentes(@PathVariable Long usuarioId) {
+    @GetMapping("/pendentes")
+    public ResponseEntity<?> listarPendentes() {
+        Long usuarioId = AuthHelper.getUsuarioIdAutenticado();
         List<GastoCompartilhado> pendentes = compartilhamentoRepository.findByUsuarioDestinoIdAndStatus(
             usuarioId, StatusCompartilhamento.PENDENTE
         );
@@ -64,7 +62,6 @@ public class CompartilhamentoController {
             item.put("tipo", comp.getTipoCompartilhamento().toString());
             item.put("dataCompartilhamento", comp.getDataCompartilhamento().toString());
 
-            // Busca detalhes do lançamento
             Optional<Lancamento> lancamento = lancamentoRepository.findById(comp.getLancamentoId());
             if (lancamento.isPresent()) {
                 item.put("lancamento", Map.of(
@@ -81,54 +78,58 @@ public class CompartilhamentoController {
     }
 
     @PutMapping("/{id}/aceitar")
-    public ResponseEntity<?> aceitar(@PathVariable Long id, @RequestBody Map<String, Long> dados) {
-        try {
-            GastoCompartilhado compartilhamento = compartilhamentoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Compartilhamento não encontrado"));
+    public ResponseEntity<?> aceitar(@PathVariable Long id) {
+        Long usuarioId = AuthHelper.getUsuarioIdAutenticado();
 
-            compartilhamento.setStatus(StatusCompartilhamento.ACEITO);
-            compartilhamentoRepository.save(compartilhamento);
+        GastoCompartilhado compartilhamento = compartilhamentoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Compartilhamento não encontrado"));
 
-            // Copia o lançamento para o usuário destino
-            Lancamento original = lancamentoRepository.findById(compartilhamento.getLancamentoId())
-                .orElseThrow(() -> new RuntimeException("Lançamento não encontrado"));
-
-            Lancamento copia = new Lancamento();
-            copia.setUsuarioId(compartilhamento.getUsuarioDestinoId());
-            copia.setDescricao(original.getDescricao() + " (compartilhado)");
-            copia.setValor(original.getValor());
-            copia.setTipo(original.getTipo());
-            copia.setCategoria(original.getCategoria());
-            copia.setFixo(false);
-            copia.setData(original.getData());
-            copia.setParcelaAtual(original.getParcelaAtual());
-            copia.setTotalParcelas(original.getTotalParcelas());
-
-            lancamentoService.salvar(copia);
-
-            return ResponseEntity.ok(Map.of("mensagem", "Compartilhamento aceito!"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        if (!compartilhamento.getUsuarioDestinoId().equals(usuarioId)) {
+            return ResponseEntity.status(403).body(Map.of("erro", "Sem permissão"));
         }
+
+        compartilhamento.setStatus(StatusCompartilhamento.ACEITO);
+        compartilhamentoRepository.save(compartilhamento);
+
+        Lancamento original = lancamentoRepository.findById(compartilhamento.getLancamentoId())
+            .orElseThrow(() -> new RuntimeException("Lançamento não encontrado"));
+
+        Lancamento copia = new Lancamento();
+        copia.setUsuarioId(usuarioId);
+        copia.setDescricao(original.getDescricao() + " (compartilhado)");
+        copia.setValor(original.getValor());
+        copia.setTipo(original.getTipo());
+        copia.setCategoria(original.getCategoria());
+        copia.setFixo(false);
+        copia.setData(original.getData());
+        copia.setParcelaAtual(original.getParcelaAtual());
+        copia.setTotalParcelas(original.getTotalParcelas());
+
+        lancamentoService.salvar(copia);
+
+        return ResponseEntity.ok(Map.of("mensagem", "Compartilhamento aceito!"));
     }
 
     @PutMapping("/{id}/recusar")
     public ResponseEntity<?> recusar(@PathVariable Long id) {
-        try {
-            GastoCompartilhado compartilhamento = compartilhamentoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Compartilhamento não encontrado"));
+        Long usuarioId = AuthHelper.getUsuarioIdAutenticado();
 
-            compartilhamento.setStatus(StatusCompartilhamento.RECUSADO);
-            compartilhamentoRepository.save(compartilhamento);
+        GastoCompartilhado compartilhamento = compartilhamentoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Compartilhamento não encontrado"));
 
-            return ResponseEntity.ok(Map.of("mensagem", "Compartilhamento recusado"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        if (!compartilhamento.getUsuarioDestinoId().equals(usuarioId)) {
+            return ResponseEntity.status(403).body(Map.of("erro", "Sem permissão"));
         }
+
+        compartilhamento.setStatus(StatusCompartilhamento.RECUSADO);
+        compartilhamentoRepository.save(compartilhamento);
+
+        return ResponseEntity.ok(Map.of("mensagem", "Compartilhamento recusado"));
     }
 
-    @GetMapping("/enviados/{usuarioId}")
-    public ResponseEntity<?> listarEnviados(@PathVariable Long usuarioId) {
+    @GetMapping("/enviados")
+    public ResponseEntity<?> listarEnviados() {
+        Long usuarioId = AuthHelper.getUsuarioIdAutenticado();
         List<GastoCompartilhado> enviados = compartilhamentoRepository
             .findByUsuarioOrigemIdOrderByDataCompartilhamentoDesc(usuarioId);
 

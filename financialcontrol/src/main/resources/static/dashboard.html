@@ -1,220 +1,194 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Controle Financeiro - Dashboard</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Financeiro - Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81' }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300 font-sans">
 
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
-    />
-    <link rel="stylesheet" href="css/style.css" />
-  </head>
-  <body>
-    <!-- Canvas para animação de fundo -->
-    <canvas id="parallaxCanvas"></canvas>
-
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
-      <div class="container">
-        <a class="navbar-brand fw-bold" href="dashboard.html">
-          <i class="bi bi-cash-stack"></i> Controle Financeiro
-        </a>
-        <div class="d-flex align-items-center">
-          <ul class="navbar-nav me-3">
-            <li class="nav-item">
-              <a class="nav-link active" href="dashboard.html">
-                <i class="bi bi-house-door"></i> Dashboard
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="index.html">
-                <i class="bi bi-list-ul"></i> Lançamentos
-              </a>
-            </li>
-          </ul>
-
-          <!-- Badge de notificações -->
-          <div class="position-relative me-3">
-            <button class="btn btn-sm btn-outline-primary position-relative" onclick="window.location.href='index.html'" title="Compartilhamentos pendentes">
-              <i class="bi bi-bell"></i>
-              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="badgeNotificacoes">
-                0
-              </span>
-            </button>
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-1 sm:gap-6">
+          <a href="dashboard.html" class="flex items-center gap-2 text-brand-600 dark:text-brand-400 font-bold text-lg">
+            <div class="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center">
+              <i class="bi bi-wallet2 text-white text-sm"></i>
+            </div>
+            <span class="hidden sm:inline">Financeiro</span>
+          </a>
+          <div class="flex items-center gap-1 ml-2">
+            <a href="dashboard.html" class="px-3 py-2 rounded-lg text-sm font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 transition-colors">
+              <i class="bi bi-grid-1x2 mr-1"></i><span class="hidden sm:inline">Dashboard</span>
+            </a>
+            <a href="index.html" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <i class="bi bi-receipt mr-1"></i><span class="hidden sm:inline">Lançamentos</span>
+            </a>
           </div>
+        </div>
 
-          <!-- Perfil do usuário -->
-          <div class="dropdown me-2">
-            <button class="btn btn-sm d-flex align-items-center" type="button" id="dropdownPerfil" data-bs-toggle="dropdown">
-              <img id="fotoPerfilNav" src="https://ui-avatars.com/api/?name=User&background=random" class="rounded-circle me-2" width="32" height="32" alt="Perfil">
-              <span id="nomeUsuarioNav">Usuário</span>
-              <i class="bi bi-chevron-down ms-1"></i>
+        <div class="flex items-center gap-2">
+          <button onclick="window.location.href='index.html'" class="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Notificações">
+            <i class="bi bi-bell text-lg text-gray-500 dark:text-gray-400"></i>
+            <span id="badgeNotificacoes" class="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center hidden">0</span>
+          </button>
+          <div class="relative" id="perfilDropdownContainer">
+            <button onclick="toggleDropdown('perfilDropdownMenu')" class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <img id="fotoPerfilNav" src="https://ui-avatars.com/api/?name=U&background=6366f1&color=fff" class="w-8 h-8 rounded-full ring-2 ring-brand-500/20" alt="Perfil">
+              <span id="nomeUsuarioNav" class="text-sm font-medium hidden md:inline">Usuário</span>
+              <i class="bi bi-chevron-down text-xs text-gray-400 hidden md:inline"></i>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="index.html"><i class="bi bi-person-circle"></i> Ver Perfil</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="#" id="btnLogout"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
-            </ul>
+            <div id="perfilDropdownMenu" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 hidden py-1 z-50">
+              <a href="index.html" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <i class="bi bi-person-circle"></i> Ver Perfil
+              </a>
+              <hr class="border-gray-200 dark:border-gray-700 my-1">
+              <a href="#" id="btnLogout" class="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+                <i class="bi bi-box-arrow-right"></i> Sair
+              </a>
+            </div>
           </div>
-
-          <button class="theme-toggle" id="themeToggle" title="Alternar tema">
-            <i class="bi bi-moon-fill" id="themeIcon"></i>
+          <button id="themeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Alternar tema">
+            <i class="bi bi-moon-fill text-gray-500 dark:text-gray-400" id="themeIcon"></i>
           </button>
         </div>
       </div>
-    </nav>
+    </div>
+  </nav>
 
-    <div class="container mt-4 pb-5">
-      <!-- Cards de Resumo -->
-      <div class="row mb-4">
-        <div class="col-md-4 mb-3">
-          <div class="card">
-            <div class="card-body text-center">
-              <h6 class="text-muted text-uppercase">Saldo Atual</h6>
-              <h2 class="fw-bold" id="saldo-atual">R$ 0,00</h2>
-            </div>
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <!-- Cards de Resumo -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-brand-50 dark:bg-brand-500/10 rounded-xl flex items-center justify-center">
+            <i class="bi bi-wallet2 text-brand-600 dark:text-brand-400 text-lg"></i>
           </div>
-        </div>
-        <div class="col-md-4 mb-3">
-          <div class="card">
-            <div class="card-body text-center">
-              <h6 class="text-muted text-uppercase">Total Receitas</h6>
-              <h2 class="fw-bold text-success" id="total-receitas">R$ 0,00</h2>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-4 mb-3">
-          <div class="card">
-            <div class="card-body text-center">
-              <h6 class="text-muted text-uppercase">Total Despesas</h6>
-              <h2 class="fw-bold text-danger" id="total-despesas">R$ 0,00</h2>
-            </div>
+          <div>
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Saldo Atual</p>
+            <h2 class="text-xl font-bold mt-0.5" id="saldo-atual">R$ 0,00</h2>
           </div>
         </div>
       </div>
-
-      <!-- Gráfico de Linha: Últimos 2 Meses -->
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="card">
-            <div class="card-header">
-              <h5 class="mb-0">
-                <i class="bi bi-graph-up"></i> Gastos dos Últimos 2 Meses
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="chart-container">
-                <canvas id="chartMeses"></canvas>
-              </div>
-            </div>
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center">
+            <i class="bi bi-arrow-up-circle text-emerald-600 dark:text-emerald-400 text-lg"></i>
+          </div>
+          <div>
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Receitas</p>
+            <h2 class="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5" id="total-receitas">R$ 0,00</h2>
           </div>
         </div>
       </div>
-
-      <!-- Gráfico de Barras: Gastos Futuros -->
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="card">
-            <div class="card-header">
-              <h5 class="mb-0">
-                <i class="bi bi-calendar-check"></i> Gastos Futuros (Parcelamentos)
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="chart-container">
-                <canvas id="chartGastosFuturos"></canvas>
-              </div>
-            </div>
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-red-50 dark:bg-red-500/10 rounded-xl flex items-center justify-center">
+            <i class="bi bi-arrow-down-circle text-red-600 dark:text-red-400 text-lg"></i>
           </div>
-        </div>
-      </div>
-
-      <!-- Gráfico de Pizza: Categorias -->
-      <div class="row">
-        <div class="col-md-6 mb-4">
-          <div class="card">
-            <div class="card-header">
-              <h5 class="mb-0">
-                <i class="bi bi-pie-chart"></i> Despesas por Categoria
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="chart-container">
-                <canvas id="chartCategoriasDespesas"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-6 mb-4">
-          <div class="card">
-            <div class="card-header">
-              <h5 class="mb-0">
-                <i class="bi bi-pie-chart-fill"></i> Receitas por Categoria
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="chart-container">
-                <canvas id="chartCategoriasReceitas"></canvas>
-              </div>
-            </div>
+          <div>
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Despesas</p>
+            <h2 class="text-xl font-bold text-red-600 dark:text-red-400 mt-0.5" id="total-despesas">R$ 0,00</h2>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Modal de Confirmação Personalizado -->
-    <div class="modal fade" id="modalConfirmacao" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0">
-          <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title" id="tituloConfirmacao">Confirmação</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body pt-2">
-            <p id="mensagemConfirmacao" class="mb-0"></p>
-          </div>
-          <div class="modal-footer border-0 gap-2 justify-content-end">
-            <button type="button" class="btn btn-secondary" id="btnConfirmarNao" data-bs-dismiss="modal">
-              Cancelar
-            </button>
-            <button type="button" class="btn btn-danger" id="btnConfirmarSim">
-              Confirmar
-            </button>
-          </div>
-        </div>
+    <!-- Gráfico Linha: Últimos 2 Meses -->
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm mb-6">
+      <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+        <i class="bi bi-graph-up mr-1"></i> Gastos dos Últimos 2 Meses
+      </h3>
+      <div class="relative" style="max-height:380px">
+        <canvas id="chartMeses"></canvas>
       </div>
     </div>
 
-    <!-- Modal de Alerta Personalizado -->
-    <div class="modal fade" id="modalAlerta" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0">
-          <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title" id="tituloAlerta">Aviso</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body pt-2">
-            <p id="mensagemAlerta" class="mb-0"></p>
-          </div>
-          <div class="modal-footer border-0 gap-2 justify-content-end">
-            <button type="button" class="btn btn-primary" id="btnFecharAlerta" data-bs-dismiss="modal">
-              OK
-            </button>
-          </div>
-        </div>
+    <!-- Gráfico Barras: Gastos Futuros -->
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm mb-6">
+      <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+        <i class="bi bi-calendar-check mr-1"></i> Gastos Futuros (Parcelamentos)
+      </h3>
+      <div class="relative" style="max-height:380px">
+        <canvas id="chartGastosFuturos"></canvas>
       </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="js/parallax.js"></script>
-    <script src="js/dashboard.js"></script>
-  </body>
+    <!-- Gráficos Pizza -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+          <i class="bi bi-pie-chart mr-1"></i> Despesas por Categoria
+        </h3>
+        <div class="relative" style="max-height:320px">
+          <canvas id="chartCategoriasDespesas"></canvas>
+        </div>
+      </div>
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+          <i class="bi bi-pie-chart-fill mr-1"></i> Receitas por Categoria
+        </h3>
+        <div class="relative" style="max-height:320px">
+          <canvas id="chartCategoriasReceitas"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal: Confirmação -->
+  <div id="modalConfirmacao" class="modal-overlay hidden">
+    <div class="modal-container max-w-sm">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold" id="tituloConfirmacao">Confirmação</h3>
+        <button onclick="fecharModal('modalConfirmacao')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5">
+        <p id="mensagemConfirmacao" class="text-gray-600 dark:text-gray-300"></p>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalConfirmacao')" class="btn-secondary" id="btnConfirmarNao">Cancelar</button>
+        <button id="btnConfirmarSim" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-colors">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Alerta -->
+  <div id="modalAlerta" class="modal-overlay hidden">
+    <div class="modal-container max-w-sm">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold" id="tituloAlerta">Aviso</h3>
+        <button onclick="fecharModal('modalAlerta')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5">
+        <p id="mensagemAlerta" class="text-gray-600 dark:text-gray-300"></p>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalAlerta')" class="btn-primary" id="btnFecharAlerta">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
 </html>
