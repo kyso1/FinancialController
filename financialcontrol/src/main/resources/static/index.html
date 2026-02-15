@@ -2,7 +2,10 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="description" content="Controle Financeiro - Gerencie suas finanças" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Controle Financeiro - Lançamentos</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -66,6 +69,10 @@
               <a href="#" onclick="abrirModal('modalPerfil'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                 <i class="bi bi-person-circle"></i> Editar Perfil
               </a>
+              <a href="#" onclick="abrirModal('modalAmigos'); carregarAmigos(); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <i class="bi bi-people"></i> Amigos
+                <span id="badgeAmigosPendentes" class="ml-auto w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center hidden">0</span>
+              </a>
               <hr class="border-gray-200 dark:border-gray-700 my-1">
               <a href="#" id="btnLogout" class="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
                 <i class="bi bi-box-arrow-right"></i> Sair
@@ -83,7 +90,7 @@
   </nav>
 
   <!-- Conteúdo -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-28">
+  <main class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-28">
     <!-- Filtros -->
     <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 mb-6 shadow-sm">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -126,6 +133,19 @@
             <i class="bi bi-currency-dollar mr-1"></i>Valor
           </button>
         </div>
+        <div class="hidden sm:block w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+        <!-- Ciclo de Fatura -->
+        <div class="flex items-center gap-2">
+          <button id="btnCicloFatura" class="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-400 rounded-xl border border-gray-200 dark:border-gray-700 transition-colors" title="Filtrar pelo ciclo de fatura do cartão (fecha dia 02, vence dia 09)">
+            <i class="bi bi-credit-card mr-1"></i>Ciclo Fatura
+          </button>
+          <div id="cicloFaturaConfig" class="hidden flex items-center gap-2">
+            <label class="text-[10px] text-gray-400">Fecha dia</label>
+            <input type="number" id="diaFechamento" min="1" max="28" value="2" class="w-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30">
+            <label class="text-[10px] text-gray-400">Vence dia</label>
+            <input type="number" id="diaVencimento" min="1" max="28" value="9" class="w-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30">
+          </div>
+        </div>
         <div class="ml-auto flex gap-2">
           <button onclick="abrirModal('modalImportacao')" class="px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-medium rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors">
             <i class="bi bi-upload mr-1"></i><span class="hidden sm:inline">Importar</span>
@@ -141,6 +161,10 @@
               <a href="#" id="btnExportarCSV" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                 <i class="bi bi-filetype-csv text-blue-600"></i> CSV (.csv)
               </a>
+              <hr class="border-gray-200 dark:border-gray-700 my-1">
+              <a href="#" id="btnEnviarEmail" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <i class="bi bi-envelope text-brand-600"></i> Enviar por E-mail
+              </a>
             </div>
           </div>
         </div>
@@ -153,9 +177,39 @@
       <h1 class="text-4xl sm:text-5xl font-extrabold mt-1 tracking-tight" id="saldo-total">R$ 0,00</h1>
     </div>
 
+    <!-- Gráfico Métodos de Pagamento -->
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 mb-6 shadow-sm">
+      <h3 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">Métodos de Pagamento</h3>
+      <div id="chartMetodosPagamento" class="min-h-[280px]"></div>
+    </div>
+
     <!-- Lista de Lançamentos -->
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Últimos Lançamentos</h3>
+      <button id="btnMultiSelect" class="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors" title="Selecionar vários">
+        <i class="bi bi-check2-square mr-1"></i>Selecionar
+      </button>
+    </div>
+    <!-- Barra de seleção em massa -->
+    <div id="barraSelecao" class="hidden sticky top-16 z-30 bg-brand-600 text-white rounded-xl px-4 py-3 mb-3 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-2 animate-slideUp">
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="checkboxTodos" class="w-4 h-4 rounded border-white/30 text-white focus:ring-0 accent-white">
+          <span class="text-sm font-medium">Todos</span>
+        </label>
+        <span id="contadorSelecionados" class="text-sm opacity-80">0 selecionados</span>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap justify-center">
+        <button id="btnEditarSelecionados" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors">
+          <i class="bi bi-pencil mr-1"></i>Editar (<span id="qtdEditar">0</span>)
+        </button>
+        <button id="btnDeletarSelecionados" class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-lg transition-colors">
+          <i class="bi bi-trash mr-1"></i>Apagar (<span id="qtdDeletar">0</span>)
+        </button>
+        <button id="btnCancelarSelecao" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-medium rounded-lg transition-colors">
+          <i class="bi bi-x-lg mr-1"></i>Cancelar
+        </button>
+      </div>
     </div>
     <div id="lista-lancamentos" class="space-y-2">
       <div class="text-center py-8 text-gray-400">
@@ -209,6 +263,18 @@
               <option value="">Selecione uma categoria</option>
             </select>
           </div>
+          <div>
+            <label class="label-sm">Método de Pagamento</label>
+            <select id="inputMetodoPagamento" class="input-field">
+              <option value="">Selecione (opcional)</option>
+              <option value="CARTAO_CREDITO">💳 Cartão de Crédito</option>
+              <option value="CARTAO_DEBITO">💳 Cartão de Débito</option>
+              <option value="PIX">⚡ PIX</option>
+              <option value="BOLETO">📄 Boleto</option>
+              <option value="TED">🏦 TED</option>
+              <option value="INVESTIMENTO">📈 Investimento</option>
+            </select>
+          </div>
           <label class="flex items-center gap-3 cursor-pointer">
             <div class="relative">
               <input type="checkbox" id="inputFixo" class="sr-only peer">
@@ -228,15 +294,30 @@
 
   <!-- Modal: Importação -->
   <div id="modalImportacao" class="modal-overlay hidden">
-    <div class="modal-container max-w-md">
+    <div class="modal-container max-w-4xl">
       <div class="modal-header">
         <h3 class="text-lg font-bold">Importar Extrato</h3>
-        <button onclick="fecharModal('modalImportacao')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+        <button onclick="fecharModalImportacao()" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
       </div>
-      <div class="p-5 space-y-4">
+
+      <!-- ETAPA 1: Seleção do arquivo -->
+      <div id="importEtapa1" class="p-5 space-y-4">
         <div class="bg-blue-50 dark:bg-blue-500/10 rounded-xl p-3 text-sm text-blue-700 dark:text-blue-300">
           <p class="font-medium mb-1">Formatos aceitos: OFX ou CSV</p>
           <p class="text-xs opacity-80"><strong>CSV:</strong> Data,Descrição,Valor,Tipo<br>Exemplo: 01/01/2024,Compra supermercado,150.50,DESPESA</p>
+        </div>
+        <div>
+          <label class="label-sm">Origem do Arquivo</label>
+          <div class="flex gap-4 mt-1">
+            <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:has-[:checked]:bg-brand-500/10">
+              <input type="radio" name="tipoImportacao" value="CONTA" class="accent-brand-600">
+              <span class="text-sm">🏦 Extrato de Conta</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:has-[:checked]:bg-brand-500/10">
+              <input type="radio" name="tipoImportacao" value="CARTAO" class="accent-brand-600" checked>
+              <span class="text-sm">💳 Fatura de Cartão</span>
+            </label>
+          </div>
         </div>
         <div>
           <label class="label-sm">Selecione o arquivo</label>
@@ -246,41 +327,186 @@
           <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
             <div class="bg-brand-600 h-full rounded-full animate-pulse w-full"></div>
           </div>
-          <p class="text-xs text-gray-500 mt-1 text-center">Importando...</p>
+          <p class="text-xs text-gray-500 mt-1 text-center">Carregando preview...</p>
         </div>
       </div>
+
+      <!-- ETAPA 2: Preview com tabela -->
+      <div id="importEtapa2" class="hidden">
+        <div class="px-5 pt-3 pb-2 flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <span id="previewContador">0</span> lançamentos encontrados
+            </span>
+            <span id="previewDuplicatas" class="hidden text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full">
+              <i class="bi bi-exclamation-triangle mr-1"></i><span id="previewDuplicatasCount">0</span> duplicata(s)
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="previewSelecionarTodos()" class="text-xs text-brand-600 dark:text-brand-400 hover:underline">Selecionar todos</button>
+            <span class="text-gray-300 dark:text-gray-600">|</span>
+            <button onclick="previewDesmarcarTodos()" class="text-xs text-gray-500 dark:text-gray-400 hover:underline">Desmarcar todos</button>
+            <span class="text-gray-300 dark:text-gray-600">|</span>
+            <button onclick="previewInverterSelecao()" class="text-xs text-gray-500 dark:text-gray-400 hover:underline">Inverter</button>
+          </div>
+        </div>
+        <div class="px-5 pb-3 overflow-x-auto" style="max-height: 420px; overflow-y: auto;">
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+              <tr class="text-left text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th class="px-3 py-2 w-8"><input type="checkbox" id="previewCheckAll" onchange="previewToggleTodos(this.checked)" class="accent-brand-600"></th>
+                <th class="px-3 py-2">Data</th>
+                <th class="px-3 py-2">Descrição</th>
+                <th class="px-3 py-2 text-right">Valor</th>
+                <th class="px-3 py-2 text-center">Tipo</th>
+                <th class="px-3 py-2 text-center hidden sm:table-cell">Parcela</th>
+                <th class="px-3 py-2 text-center hidden sm:table-cell">Status</th>
+              </tr>
+            </thead>
+            <tbody id="previewTabelaBody" class="divide-y divide-gray-100 dark:divide-gray-800">
+            </tbody>
+          </table>
+        </div>
+        <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2 text-sm">
+          <div class="flex flex-wrap items-center gap-2 sm:gap-4">
+            <span class="text-gray-500 dark:text-gray-400">Selecionados: <strong id="previewSelecionadosCount" class="text-gray-800 dark:text-gray-200">0</strong></span>
+            <span class="text-emerald-600 dark:text-emerald-400 font-medium">Receitas: <span id="previewTotalReceitas">R$ 0,00</span></span>
+            <span class="text-red-500 dark:text-red-400 font-medium">Despesas: <span id="previewTotalDespesas">R$ 0,00</span></span>
+          </div>
+        </div>
+      </div>
+
       <div class="modal-footer">
-        <button onclick="fecharModal('modalImportacao')" class="btn-secondary">Cancelar</button>
-        <button id="btnImportar" class="btn-primary"><i class="bi bi-upload mr-1"></i> Importar</button>
+        <button id="btnVoltarImport" onclick="voltarEtapaImport()" class="btn-secondary hidden"><i class="bi bi-arrow-left mr-1"></i> Voltar</button>
+        <button onclick="fecharModalImportacao()" class="btn-secondary">Cancelar</button>
+        <button id="btnPreviewImport" onclick="carregarPreview()" class="btn-primary"><i class="bi bi-eye mr-1"></i> Visualizar</button>
+        <button id="btnConfirmarImport" onclick="confirmarImportacao()" class="btn-primary hidden"><i class="bi bi-check-lg mr-1"></i> Importar Selecionados</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Perfil -->
+  <!-- Modal: Perfil (com abas) -->
   <div id="modalPerfil" class="modal-overlay hidden">
-    <div class="modal-container max-w-md">
+    <div class="modal-container max-w-lg">
       <div class="modal-header">
-        <h3 class="text-lg font-bold">Editar Perfil</h3>
+        <h3 class="text-lg font-bold"><i class="bi bi-person-gear mr-2"></i>Meu Perfil</h3>
         <button onclick="fecharModal('modalPerfil')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
       </div>
-      <div class="p-5 space-y-4">
+
+      <!-- Tabs -->
+      <div class="flex border-b border-gray-200 dark:border-gray-700 px-5">
+        <button onclick="trocarAbaPerfil('dados')" id="tabDados" class="tab-perfil-btn px-4 py-2.5 text-sm font-medium border-b-2 border-brand-500 text-brand-600 dark:text-brand-400 transition-colors">
+          <i class="bi bi-person mr-1"></i> Dados
+        </button>
+        <button onclick="trocarAbaPerfil('seguranca')" id="tabSeguranca" class="tab-perfil-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+          <i class="bi bi-shield-lock mr-1"></i> Segurança
+        </button>
+        <button onclick="trocarAbaPerfil('preferencias')" id="tabPreferencias" class="tab-perfil-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+          <i class="bi bi-palette mr-1"></i> Preferências
+        </button>
+      </div>
+
+      <!-- Aba: Dados -->
+      <div id="painelDados" class="aba-perfil-painel p-5 space-y-4">
         <div class="text-center">
-          <img id="previewFotoPerfil" src="https://ui-avatars.com/api/?name=U&background=6366f1&color=fff" class="w-20 h-20 rounded-full mx-auto ring-4 ring-brand-500/20" alt="">
+          <div class="relative inline-block">
+            <img id="previewFotoPerfil" src="https://ui-avatars.com/api/?name=U&background=6366f1&color=fff" class="w-24 h-24 rounded-full ring-4 ring-brand-500/20 object-cover" alt="">
+            <label for="inputFotoArquivo" class="absolute bottom-0 right-0 w-8 h-8 bg-brand-500 hover:bg-brand-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg transition-colors">
+              <i class="bi bi-camera text-sm"></i>
+            </label>
+            <input type="file" id="inputFotoArquivo" accept="image/*" class="hidden" onchange="previewFotoSelecionada(this)">
+          </div>
+          <p class="text-xs text-gray-400 mt-2">Clique no ícone para alterar a foto</p>
         </div>
         <div>
           <label class="label-sm">Nome</label>
           <input type="text" id="inputNomePerfil" class="input-field" placeholder="Seu nome">
         </div>
         <div>
-          <label class="label-sm">URL da Foto de Perfil</label>
-          <input type="text" id="inputFotoPerfil" class="input-field" placeholder="https://exemplo.com/foto.jpg">
-          <p class="text-xs text-gray-400 mt-1">Cole a URL de uma imagem ou use <a href="https://ui-avatars.com" target="_blank" class="text-brand-500 hover:underline">UI Avatars</a></p>
+          <label class="label-sm">E-mail</label>
+          <input type="email" id="inputEmailPerfil" class="input-field" placeholder="seu@email.com">
+        </div>
+        <div class="pt-2">
+          <button id="btnSalvarPerfil" class="btn-primary w-full"><i class="bi bi-check-lg mr-1"></i> Salvar Dados</button>
         </div>
       </div>
-      <div class="modal-footer">
-        <button onclick="fecharModal('modalPerfil')" class="btn-secondary">Cancelar</button>
-        <button id="btnSalvarPerfil" class="btn-primary">Salvar</button>
+
+      <!-- Aba: Segurança -->
+      <div id="painelSeguranca" class="aba-perfil-painel hidden p-5 space-y-4">
+        <div class="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-3">
+          <p class="text-xs text-amber-700 dark:text-amber-400"><i class="bi bi-info-circle mr-1"></i> A senha atual é obrigatória para confirmar a alteração.</p>
+        </div>
+        <div>
+          <label class="label-sm">Senha Atual</label>
+          <div class="relative">
+            <input type="password" id="inputSenhaAtual" class="input-field pr-10" placeholder="••••••••">
+            <button type="button" onclick="toggleSenhaVisivel('inputSenhaAtual', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="label-sm">Nova Senha</label>
+          <div class="relative">
+            <input type="password" id="inputNovaSenha" class="input-field pr-10" placeholder="Mínimo 6 caracteres">
+            <button type="button" onclick="toggleSenhaVisivel('inputNovaSenha', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="label-sm">Confirmar Nova Senha</label>
+          <div class="relative">
+            <input type="password" id="inputConfirmarSenha" class="input-field pr-10" placeholder="Repita a nova senha">
+            <button type="button" onclick="toggleSenhaVisivel('inputConfirmarSenha', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="pt-2">
+          <button id="btnSalvarSenha" class="btn-primary w-full"><i class="bi bi-shield-check mr-1"></i> Alterar Senha</button>
+        </div>
       </div>
+
+      <!-- Aba: Preferências -->
+      <div id="painelPreferencias" class="aba-perfil-painel hidden p-5 space-y-4">
+        <div>
+          <label class="label-sm">Tema da Interface</label>
+          <div class="grid grid-cols-3 gap-3 mt-2">
+            <label class="relative cursor-pointer">
+              <input type="radio" name="temaPerfil" value="light" class="peer sr-only">
+              <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-500/10 transition-all">
+                <div class="w-10 h-10 rounded-full bg-gray-100 border-2 border-gray-300 flex items-center justify-center">
+                  <i class="bi bi-sun-fill text-amber-500"></i>
+                </div>
+                <span class="text-xs font-medium">Claro</span>
+              </div>
+            </label>
+            <label class="relative cursor-pointer">
+              <input type="radio" name="temaPerfil" value="dark" class="peer sr-only">
+              <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-500/10 transition-all">
+                <div class="w-10 h-10 rounded-full bg-gray-800 border-2 border-gray-600 flex items-center justify-center">
+                  <i class="bi bi-moon-fill text-blue-400"></i>
+                </div>
+                <span class="text-xs font-medium">Escuro</span>
+              </div>
+            </label>
+            <label class="relative cursor-pointer">
+              <input type="radio" name="temaPerfil" value="auto" class="peer sr-only">
+              <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-500/10 transition-all">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-800 border-2 border-gray-400 flex items-center justify-center">
+                  <i class="bi bi-circle-half text-gray-500"></i>
+                </div>
+                <span class="text-xs font-medium">Automático</span>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="pt-2">
+          <button id="btnSalvarPreferencias" class="btn-primary w-full"><i class="bi bi-check-lg mr-1"></i> Salvar Preferências</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -444,7 +670,95 @@
     </div>
   </div>
 
+  <!-- Modal: Editar Método de Pagamento em Lote -->
+  <div id="modalEditarMetodo" class="modal-overlay hidden">
+    <div class="modal-container max-w-sm">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold"><i class="bi bi-pencil-square mr-2"></i>Editar Método de Pagamento</h3>
+        <button onclick="fecharModal('modalEditarMetodo')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <p class="text-sm text-gray-500 dark:text-gray-400">Alterar o método de pagamento de <strong id="qtdEditarModal">0</strong> lançamento(s):</p>
+        <div>
+          <label class="label-sm">Método de Pagamento</label>
+          <select id="inputMetodoLote" class="input-field">
+            <option value="">Selecione...</option>
+            <option value="CARTAO_CREDITO">💳 Cartão de Crédito</option>
+            <option value="CARTAO_DEBITO">💳 Cartão de Débito</option>
+            <option value="PIX">⚡ PIX</option>
+            <option value="BOLETO">📄 Boleto</option>
+            <option value="TED">🏦 TED</option>
+            <option value="INVESTIMENTO">📈 Investimento</option>
+          </select>
+        </div>
+        <div class="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-3 text-sm text-amber-700 dark:text-amber-300">
+          <i class="bi bi-info-circle mr-1"></i>
+          Ao selecionar <strong>Investimento</strong>, a categoria será automaticamente alterada para "Investimento".
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="fecharModal('modalEditarMetodo')" class="btn-secondary">Cancelar</button>
+        <button id="btnConfirmarEditarMetodo" class="btn-primary">Aplicar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Amigos -->
+  <div id="modalAmigos" class="modal-overlay hidden">
+    <div class="modal-container max-w-lg">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold"><i class="bi bi-people mr-2"></i>Amigos</h3>
+        <button onclick="fecharModal('modalAmigos')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <!-- Tabs de amigos -->
+      <div class="flex border-b border-gray-200 dark:border-gray-700 px-5">
+        <button onclick="trocarAbaAmigos('lista')" id="tabAmigosLista" class="tab-amigo-btn px-4 py-2.5 text-sm font-medium border-b-2 border-brand-500 text-brand-600 dark:text-brand-400 transition-colors">
+          <i class="bi bi-people-fill mr-1"></i> Meus Amigos
+        </button>
+        <button onclick="trocarAbaAmigos('pendentes')" id="tabAmigosPendentes" class="tab-amigo-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors relative">
+          <i class="bi bi-clock-history mr-1"></i> Pendentes
+          <span id="badgePendentesTab" class="ml-1 w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full inline-flex items-center justify-center hidden">0</span>
+        </button>
+        <button onclick="trocarAbaAmigos('adicionar')" id="tabAmigosAdicionar" class="tab-amigo-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+          <i class="bi bi-person-plus mr-1"></i> Adicionar
+        </button>
+      </div>
+
+      <!-- Aba: Lista de Amigos -->
+      <div id="painelAmigosLista" class="aba-amigo-painel p-5">
+        <div id="listaAmigos" class="space-y-3">
+          <p class="text-center text-gray-400 py-6 text-sm">Carregando...</p>
+        </div>
+      </div>
+
+      <!-- Aba: Solicitações Pendentes -->
+      <div id="painelAmigosPendentes" class="aba-amigo-painel hidden p-5">
+        <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Recebidas</h4>
+        <div id="listaPendentesRecebidos" class="space-y-3 mb-6">
+          <p class="text-center text-gray-400 py-4 text-sm">Nenhuma solicitação pendente</p>
+        </div>
+        <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Enviadas</h4>
+        <div id="listaPendentesEnviados" class="space-y-3">
+          <p class="text-center text-gray-400 py-4 text-sm">Nenhuma solicitação enviada</p>
+        </div>
+      </div>
+
+      <!-- Aba: Adicionar Amigo -->
+      <div id="painelAmigosAdicionar" class="aba-amigo-painel hidden p-5">
+        <div class="relative mb-4">
+          <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input type="text" id="inputBuscarAmigo" class="input-field pl-10" placeholder="Buscar por nome de usuário..." />
+        </div>
+        <div id="resultadoBuscarAmigo" class="space-y-3">
+          <p class="text-center text-gray-400 py-4 text-sm">Digite para buscar usuários</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

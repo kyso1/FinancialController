@@ -6,10 +6,10 @@ $(document).ready(function() {
     const token = localStorage.getItem('token');
     if (token) verificarLogin(token);
 
-    // Verifica se tem token de reset na URL
+    // Verifica se tem token de reset na URL (sanitizar para evitar XSS)
     const params = new URLSearchParams(window.location.search);
     const resetToken = params.get('token');
-    if (resetToken) {
+    if (resetToken && /^[a-zA-Z0-9\-_.]+$/.test(resetToken)) {
         $('#reset-token').val(resetToken);
         mostrarTab('reset');
     }
@@ -24,6 +24,13 @@ $(document).ready(function() {
     $('#form-cadastro').submit(function(e) { e.preventDefault(); fazerCadastro(); });
     $('#form-forgot').submit(function(e) { e.preventDefault(); enviarRecuperacao(); });
     $('#form-reset').submit(function(e) { e.preventDefault(); redefinirSenha(); });
+
+    // Validação de senha em tempo real
+    $('#cadastro-senha').on('input', validarRequisitos);
+    $('#cadastro-senha-confirma').on('input', validarRequisitos);
+    $('#cadastro-termos').on('change', validarRequisitos);
+    $('#cadastro-username').on('input', validarRequisitos);
+    $('#cadastro-email').on('input', validarRequisitos);
 
     // Navegação
     $('#btnForgotPassword').click(function() { mostrarTab('forgot'); });
@@ -54,6 +61,82 @@ function mostrarTab(tab) {
 }
 
 // ===== AUTENTICAÇÃO =====
+
+// ===== VALIDAÇÃO DE SENHA =====
+function validarRequisitos() {
+    const senha = $('#cadastro-senha').val();
+    const senhaConfirma = $('#cadastro-senha-confirma').val();
+    const termos = $('#cadastro-termos').is(':checked');
+    const username = $('#cadastro-username').val();
+    const email = $('#cadastro-email').val();
+
+    const temTamanho = senha.length >= 8;
+    const temNumero = /\d/.test(senha);
+    const temEspecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(senha);
+    const temMaiuscula = /[A-Z]/.test(senha);
+
+    atualizarRequisito('req-tamanho', temTamanho);
+    atualizarRequisito('req-numero', temNumero);
+    atualizarRequisito('req-especial', temEspecial);
+    atualizarRequisito('req-maiuscula', temMaiuscula);
+
+    // Barra de força
+    let forca = 0;
+    if (temTamanho) forca++;
+    if (temNumero) forca++;
+    if (temEspecial) forca++;
+    if (temMaiuscula) forca++;
+    if (senha.length >= 12) forca++;
+
+    const barra = $('#senha-forca-barra');
+    const texto = $('#senha-forca-texto');
+    const pct = Math.min(forca * 20, 100);
+    barra.css('width', pct + '%');
+
+    if (forca <= 1) { barra.css('background', '#ef4444'); texto.text('Muito fraca').css('color', '#ef4444'); }
+    else if (forca === 2) { barra.css('background', '#f97316'); texto.text('Fraca').css('color', '#f97316'); }
+    else if (forca === 3) { barra.css('background', '#eab308'); texto.text('Razoável').css('color', '#eab308'); }
+    else if (forca === 4) { barra.css('background', '#22c55e'); texto.text('Forte').css('color', '#22c55e'); }
+    else { barra.css('background', '#10b981'); texto.text('Muito forte').css('color', '#10b981'); }
+
+    if (!senha) { texto.text(''); barra.css('width', '0%'); }
+
+    // Confirmação de senha
+    const matchDiv = $('#senha-match');
+    if (senhaConfirma) {
+        matchDiv.removeClass('hidden');
+        if (senha === senhaConfirma) {
+            matchDiv.find('span').text('✓ As senhas coincidem').css('color', '#22c55e');
+        } else {
+            matchDiv.find('span').text('✗ As senhas não coincidem').css('color', '#ef4444');
+        }
+    } else {
+        matchDiv.addClass('hidden');
+    }
+
+    // Habilitar/desabilitar botão
+    const senhaValida = temTamanho && temNumero && temEspecial && temMaiuscula;
+    const senhasIguais = senha === senhaConfirma && senhaConfirma.length > 0;
+    const usernameOk = username.length >= 3;
+    const emailOk = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    const podeRegistrar = senhaValida && senhasIguais && termos && usernameOk && emailOk;
+    $('#btnCadastro').prop('disabled', !podeRegistrar);
+}
+
+function atualizarRequisito(id, ok) {
+    const el = $(`#${id}`);
+    const icon = el.find('i');
+    const span = el.find('span');
+    if (ok) {
+        icon.attr('class', 'bi bi-check-circle-fill text-emerald-400 text-xs');
+        span.css('color', 'rgba(52,211,153,0.9)');
+    } else {
+        icon.attr('class', 'bi bi-x-circle-fill text-white/20 text-xs');
+        span.css('color', 'rgba(255,255,255,0.3)');
+    }
+}
+
 function fazerLogin() {
     const username = $('#login-username').val();
     const senha = $('#login-senha').val();
@@ -68,6 +151,7 @@ function fazerLogin() {
         data: JSON.stringify({ username, senha }),
         success: function(response) {
             localStorage.setItem('token', response.token);
+            localStorage.setItem('refreshToken', response.refreshToken);
             localStorage.setItem('userId', response.id);
             localStorage.setItem('username', response.username);
             window.location.href = 'dashboard.html';
@@ -91,16 +175,40 @@ function fazerCadastro() {
         return;
     }
 
-    if (senha.length < 6) {
-        mostrarToast('Senha fraca', 'A senha deve ter pelo menos 6 caracteres.', 'error');
+    if (senha.length < 8) {
+        mostrarToast('Senha fraca', 'A senha deve ter pelo menos 8 caracteres.', 'error');
+        return;
+    }
+
+    if (!/\d/.test(senha)) {
+        mostrarToast('Senha fraca', 'A senha deve conter pelo menos um número.', 'error');
+        return;
+    }
+
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(senha)) {
+        mostrarToast('Senha fraca', 'A senha deve conter pelo menos um caractere especial.', 'error');
+        return;
+    }
+
+    if (!/[A-Z]/.test(senha)) {
+        mostrarToast('Senha fraca', 'A senha deve conter pelo menos uma letra maiúscula.', 'error');
+        return;
+    }
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        mostrarToast('E-mail obrigatório', 'Informe um e-mail válido.', 'error');
+        return;
+    }
+
+    if (!$('#cadastro-termos').is(':checked')) {
+        mostrarToast('Termos obrigatórios', 'Você deve aceitar os Termos de Serviço e a Política de Privacidade.', 'error');
         return;
     }
 
     const btn = $('#btnCadastro');
     btn.prop('disabled', true).html('<i class="bi bi-arrow-repeat animate-spin"></i> Criando...');
 
-    const dados = { username, senha };
-    if (email) dados.email = email;
+    const dados = { username, senha, email };
 
     $.ajax({
         url: '/api/auth/cadastro',
@@ -109,12 +217,14 @@ function fazerCadastro() {
         data: JSON.stringify(dados),
         success: function(response) {
             localStorage.setItem('token', response.token);
+            localStorage.setItem('refreshToken', response.refreshToken);
             localStorage.setItem('userId', response.id);
             localStorage.setItem('username', response.username);
             window.location.href = 'dashboard.html';
         },
         error: function(xhr) {
             btn.prop('disabled', false).html('<i class="bi bi-person-check"></i> Criar Minha Conta');
+            validarRequisitos(); // Re-check button state
             const erro = xhr.responseJSON?.erro || 'Erro ao criar conta.';
             mostrarToast('Erro no Cadastro', erro, 'error');
         }
@@ -202,29 +312,43 @@ function inicializarGoogle() {
         if (config.clientId && config.clientId !== '') {
             $('#googleBtnContainer').removeClass('hidden');
 
-            // Inicializa Google Identity Services
-            if (typeof google !== 'undefined' && google.accounts) {
-                google.accounts.id.initialize({
-                    client_id: config.clientId,
-                    callback: handleGoogleResponse
-                });
-
-                google.accounts.id.renderButton(
-                    document.getElementById('btnGoogleLogin'),
-                    { theme: 'outline', size: 'large', width: '100%', text: 'continue_with', shape: 'pill' }
-                );
-            } else {
-                // GIS não carregou ainda, usa botão customizado
-                $('#btnGoogleLogin').click(function() {
-                    mostrarToast('Google', 'Biblioteca do Google ainda carregando. Tente novamente.', 'error');
-                });
-            }
+            // Aguarda a biblioteca do Google carregar
+            aguardarGoogleCarregar(config.clientId);
         } else {
             $('#googleDisabledMsg').removeClass('hidden');
         }
     }).fail(function() {
         $('#googleDisabledMsg').removeClass('hidden');
     });
+}
+
+// Aguarda o carregamento da biblioteca Google Identity Services
+function aguardarGoogleCarregar(clientId, tentativas = 0, maxTentativas = 50) {
+    // Verifica se a biblioteca está carregada
+    if (typeof google !== 'undefined' && google.accounts) {
+        // Biblioteca carregada, inicializa
+        google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleResponse
+        });
+
+        google.accounts.id.renderButton(
+            document.getElementById('btnGoogleLogin'),
+            { theme: 'outline', size: 'large', width: '100%', text: 'continue_with', shape: 'pill' }
+        );
+    } else if (tentativas < maxTentativas) {
+        // Ainda não carregou, tenta novamente em 100ms
+        setTimeout(function() {
+            aguardarGoogleCarregar(clientId, tentativas + 1, maxTentativas);
+        }, 100);
+    } else {
+        // Timeout: biblioteca não carregou após 5 segundos
+        console.warn('Biblioteca do Google não carregou após ' + (maxTentativas * 100) + 'ms');
+        // Configura botão customizado com mensagem de erro
+        $('#btnGoogleLogin').click(function() {
+            mostrarToast('Erro', 'Não foi possível carregar a autenticação Google. Verifique sua conexão.', 'error');
+        });
+    }
 }
 
 function handleGoogleResponse(response) {
@@ -240,6 +364,7 @@ function handleGoogleResponse(response) {
         data: JSON.stringify({ credential: response.credential }),
         success: function(data) {
             localStorage.setItem('token', data.token);
+            localStorage.setItem('refreshToken', data.refreshToken);
             localStorage.setItem('userId', data.id);
             localStorage.setItem('username', data.username);
             window.location.href = 'dashboard.html';

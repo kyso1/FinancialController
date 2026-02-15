@@ -2,7 +2,10 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="theme-color" content="#312e81" />
+  <meta name="description" content="Login - Controle Financeiro" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Login - Controle Financeiro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -121,15 +124,15 @@
             <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">Usuário</label>
             <div class="relative">
               <i class="bi bi-person absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
-              <input type="text" id="cadastro-username" required
+              <input type="text" id="cadastro-username" required minlength="3"
                 class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="Escolha um nome de usuário" />
             </div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">E-mail <span class="text-white/20">(opcional)</span></label>
+            <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">E-mail <span class="text-red-400">*</span></label>
             <div class="relative">
               <i class="bi bi-envelope absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
-              <input type="email" id="cadastro-email"
+              <input type="email" id="cadastro-email" required
                 class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="seu@email.com" />
             </div>
           </div>
@@ -137,8 +140,34 @@
             <label class="block text-xs font-medium text-indigo-200/70 mb-1.5 uppercase tracking-wider">Senha</label>
             <div class="relative">
               <i class="bi bi-lock absolute left-3 top-1/2 -translate-y-1/2 text-white/30"></i>
-              <input type="password" id="cadastro-senha" required minlength="6"
-                class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="Mínimo 6 caracteres" />
+              <input type="password" id="cadastro-senha" required minlength="8"
+                class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="Mínimo 8 caracteres" />
+            </div>
+            <!-- Indicadores de requisitos da senha -->
+            <div id="senha-requisitos" class="mt-2 space-y-1">
+              <div class="flex items-center gap-2" id="req-tamanho">
+                <i class="bi bi-x-circle-fill text-white/20 text-xs"></i>
+                <span class="text-xs text-white/30">Mínimo de 8 caracteres</span>
+              </div>
+              <div class="flex items-center gap-2" id="req-numero">
+                <i class="bi bi-x-circle-fill text-white/20 text-xs"></i>
+                <span class="text-xs text-white/30">Pelo menos um número</span>
+              </div>
+              <div class="flex items-center gap-2" id="req-especial">
+                <i class="bi bi-x-circle-fill text-white/20 text-xs"></i>
+                <span class="text-xs text-white/30">Pelo menos um caractere especial (!@#$%&*...)</span>
+              </div>
+              <div class="flex items-center gap-2" id="req-maiuscula">
+                <i class="bi bi-x-circle-fill text-white/20 text-xs"></i>
+                <span class="text-xs text-white/30">Pelo menos uma letra maiúscula</span>
+              </div>
+            </div>
+            <!-- Barra de força da senha -->
+            <div class="mt-2">
+              <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div id="senha-forca-barra" class="h-full rounded-full transition-all duration-300" style="width:0%"></div>
+              </div>
+              <p id="senha-forca-texto" class="text-xs text-white/30 mt-1"></p>
             </div>
           </div>
           <div>
@@ -148,9 +177,22 @@
               <input type="password" id="cadastro-senha-confirma" required
                 class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-brand-500 input-glow transition-all" placeholder="Repita a senha" />
             </div>
+            <div id="senha-match" class="mt-1 hidden">
+              <span class="text-xs"></span>
+            </div>
           </div>
-          <button type="submit" id="btnCadastro"
-            class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold py-3 rounded-xl shadow-lg shadow-emerald-600/30 hover:shadow-emerald-500/40 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+          <!-- Termos de serviço e privacidade -->
+          <div class="flex items-start gap-2">
+            <input type="checkbox" id="cadastro-termos" class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-brand-500 focus:ring-brand-500 cursor-pointer" />
+            <label for="cadastro-termos" class="text-xs text-white/50 cursor-pointer leading-relaxed">
+              Ao criar uma conta, concordo com os
+              <a href="termos.html" target="_blank" class="text-brand-400 hover:text-brand-300 underline">Termos de Serviço</a>
+              e a
+              <a href="privacidade.html" target="_blank" class="text-brand-400 hover:text-brand-300 underline">Política de Privacidade</a>.
+            </label>
+          </div>
+          <button type="submit" id="btnCadastro" disabled
+            class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold py-3 rounded-xl shadow-lg shadow-emerald-600/30 hover:shadow-emerald-500/40 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none">
             <i class="bi bi-person-check"></i> Criar Minha Conta
           </button>
         </form>
@@ -218,7 +260,7 @@
       </div>
     </div>
 
-    <p class="text-center text-white/20 text-xs mt-6 fade-up-delay2">&copy; 2024 Controle Financeiro</p>
+    <p class="text-center text-white/20 text-xs mt-6 fade-up-delay2">&copy; 2025 Controle Financeiro</p>
   </div>
 
   <!-- Toast de notificação -->

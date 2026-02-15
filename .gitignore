@@ -41,3 +41,11 @@ logs/
 
 # Dependências locais
 .m2/
+
+# Variáveis de ambiente (NUNCA commitar!)
+.env
+.env.local
+.env.*.local
+
+# Uploads do usuário
+uploads/

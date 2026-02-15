@@ -1,15 +1,16 @@
 package com.finance.service;
 
-import com.finance.model.Lancamento;
-import com.finance.repository.LancamentoRepository;
+import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.temporal.TemporalAdjusters;
-import java.util.List;
-import java.util.Optional;
+import com.finance.model.Lancamento;
+import com.finance.model.MetodoPagamento;
+import com.finance.repository.LancamentoRepository;
 
 @Service
 public class LancamentoService {
@@ -61,7 +62,7 @@ public class LancamentoService {
             lancamentoExistente.setTipo(novosDados.getTipo());
             lancamentoExistente.setCategoria(novosDados.getCategoria());
             lancamentoExistente.setFixo(novosDados.isFixo());
-            //lancamentoExistente.setData(novosDados.getData()); comentado pra evitar de alterar a ordem ao atualizar.
+            lancamentoExistente.setMetodoPagamento(novosDados.getMetodoPagamento());
             return repository.save(lancamentoExistente);
         }).orElse(null);
     }
@@ -84,5 +85,25 @@ public class LancamentoService {
     
     public void deletar(Long id) {
         repository.deleteById(id);
+    }
+
+    @Transactional
+    public int deletarVarios(List<Long> ids, Long usuarioId) {
+        List<Lancamento> lancamentos = repository.findAllByIdInAndUsuarioId(ids, usuarioId);
+        repository.deleteAll(lancamentos);
+        return lancamentos.size();
+    }
+
+    @Transactional
+    public int atualizarMetodoPagamentoEmLote(List<Long> ids, Long usuarioId, MetodoPagamento metodo) {
+        List<Lancamento> lancamentos = repository.findAllByIdInAndUsuarioId(ids, usuarioId);
+        for (Lancamento l : lancamentos) {
+            l.setMetodoPagamento(metodo);
+            if (metodo == MetodoPagamento.INVESTIMENTO) {
+                l.setCategoria(com.finance.model.CategoriaLancamento.INVESTIMENTO);
+            }
+        }
+        repository.saveAll(lancamentos);
+        return lancamentos.size();
     }
 }

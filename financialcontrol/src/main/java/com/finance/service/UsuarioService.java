@@ -1,8 +1,10 @@
 package com.finance.service;
 
-import com.finance.dto.Usuario.DadosRegistro;
-import com.finance.model.Usuario;
-import com.finance.repository.UsuarioRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
@@ -10,10 +12,9 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.List;
-import java.util.UUID;
+import com.finance.dto.Usuario.DadosRegistro;
+import com.finance.model.Usuario;
+import com.finance.repository.UsuarioRepository;
 
 @Service
 public class UsuarioService {
@@ -70,6 +71,20 @@ public class UsuarioService {
 
     public List<Usuario> listarTodos() {
         return repository.findAll();
+    }
+
+    // ===== ALTERAÇÃO DE SENHA =====
+
+    public void alterarSenha(Long usuarioId, String senhaAtual, String novaSenha) {
+        Usuario usuario = repository.findById(usuarioId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        if (!passwordEncoder.matches(senhaAtual, usuario.getSenha())) {
+            throw new RuntimeException("Senha atual incorreta");
+        }
+
+        usuario.setSenha(passwordEncoder.encode(novaSenha));
+        repository.save(usuario);
     }
 
     // ===== RECUPERAÇÃO DE SENHA =====

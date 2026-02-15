@@ -1,19 +1,34 @@
 package com.finance.controller;
 
-import com.finance.model.Lancamento;
-import com.finance.security.AuthHelper;
-import com.finance.service.LancamentoService;
-import org.apache.poi.ss.usermodel.*;
+import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.io.ByteArrayOutputStream;
-import java.time.LocalDate;
-import java.util.List;
+import com.finance.model.Lancamento;
+import com.finance.model.Usuario;
+import com.finance.security.AuthHelper;
+import com.finance.service.LancamentoService;
+import com.finance.service.RelatorioService;
 
 @RestController
 @RequestMapping("/api/exportacao")
@@ -21,6 +36,9 @@ public class ExportacaoController {
 
     @Autowired
     private LancamentoService lancamentoService;
+
+    @Autowired
+    private RelatorioService relatorioService;
 
     @GetMapping("/excel")
     public ResponseEntity<byte[]> exportarExcel(
@@ -155,5 +173,22 @@ public class ExportacaoController {
         headers.setContentDispositionFormData("attachment", "lancamentos.csv");
 
         return ResponseEntity.ok().headers(headers).body(csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    @PostMapping("/enviar-email")
+    public ResponseEntity<?> enviarRelatorioPorEmail(
+            @RequestParam(required = false) String dataInicio,
+            @RequestParam(required = false) String dataFim) {
+        try {
+            Usuario usuario = AuthHelper.getUsuarioAutenticado();
+            LocalDate inicio = dataInicio != null ? LocalDate.parse(dataInicio) : null;
+            LocalDate fim = dataFim != null ? LocalDate.parse(dataFim) : null;
+
+            relatorioService.enviarRelatorioPorEmail(usuario, inicio, fim);
+
+            return ResponseEntity.ok(Map.of("mensagem", "Relatório enviado para " + usuario.getEmail()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
     }
 }

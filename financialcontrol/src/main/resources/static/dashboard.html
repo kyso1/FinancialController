@@ -2,7 +2,10 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="description" content="Controle Financeiro - Dashboard" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Controle Financeiro - Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -58,8 +61,12 @@
               <i class="bi bi-chevron-down text-xs text-gray-400 hidden md:inline"></i>
             </button>
             <div id="perfilDropdownMenu" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 hidden py-1 z-50">
-              <a href="index.html" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <i class="bi bi-person-circle"></i> Ver Perfil
+              <a href="#" onclick="abrirModal('modalPerfil'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <i class="bi bi-person-circle"></i> Editar Perfil
+              </a>
+              <a href="#" onclick="abrirModal('modalAmigos'); carregarAmigos(); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <i class="bi bi-people"></i> Amigos
+                <span id="badgeAmigosPendentes" class="ml-auto w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center hidden">0</span>
               </a>
               <hr class="border-gray-200 dark:border-gray-700 my-1">
               <a href="#" id="btnLogout" class="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
@@ -118,8 +125,8 @@
       <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
         <i class="bi bi-graph-up mr-1"></i> Gastos dos Últimos 2 Meses
       </h3>
-      <div class="relative" style="max-height:380px">
-        <canvas id="chartMeses"></canvas>
+      <div class="relative" style="min-height:350px">
+        <div id="chartMeses"></div>
       </div>
     </div>
 
@@ -128,8 +135,8 @@
       <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
         <i class="bi bi-calendar-check mr-1"></i> Gastos Futuros (Parcelamentos)
       </h3>
-      <div class="relative" style="max-height:380px">
-        <canvas id="chartGastosFuturos"></canvas>
+      <div class="relative" style="min-height:350px">
+        <div id="chartGastosFuturos"></div>
       </div>
     </div>
 
@@ -139,16 +146,16 @@
         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
           <i class="bi bi-pie-chart mr-1"></i> Despesas por Categoria
         </h3>
-        <div class="relative" style="max-height:320px">
-          <canvas id="chartCategoriasDespesas"></canvas>
+        <div class="relative" style="min-height:300px">
+          <div id="chartCategoriasDespesas"></div>
         </div>
       </div>
       <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
           <i class="bi bi-pie-chart-fill mr-1"></i> Receitas por Categoria
         </h3>
-        <div class="relative" style="max-height:320px">
-          <canvas id="chartCategoriasReceitas"></canvas>
+        <div class="relative" style="min-height:300px">
+          <div id="chartCategoriasReceitas"></div>
         </div>
       </div>
     </div>
@@ -187,8 +194,187 @@
     </div>
   </div>
 
+  <!-- Modal: Perfil (com abas) -->
+  <div id="modalPerfil" class="modal-overlay hidden">
+    <div class="modal-container max-w-lg">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold"><i class="bi bi-person-gear mr-2"></i>Meu Perfil</h3>
+        <button onclick="fecharModal('modalPerfil')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex border-b border-gray-200 dark:border-gray-700 px-5">
+        <button onclick="trocarAbaPerfil('dados')" id="tabDados" class="tab-perfil-btn px-4 py-2.5 text-sm font-medium border-b-2 border-brand-500 text-brand-600 dark:text-brand-400 transition-colors">
+          <i class="bi bi-person mr-1"></i> Dados
+        </button>
+        <button onclick="trocarAbaPerfil('seguranca')" id="tabSeguranca" class="tab-perfil-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+          <i class="bi bi-shield-lock mr-1"></i> Segurança
+        </button>
+        <button onclick="trocarAbaPerfil('preferencias')" id="tabPreferencias" class="tab-perfil-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+          <i class="bi bi-palette mr-1"></i> Preferências
+        </button>
+      </div>
+
+      <!-- Aba: Dados -->
+      <div id="painelDados" class="aba-perfil-painel p-5 space-y-4">
+        <div class="text-center">
+          <div class="relative inline-block">
+            <img id="previewFotoPerfil" src="https://ui-avatars.com/api/?name=U&background=6366f1&color=fff" class="w-24 h-24 rounded-full ring-4 ring-brand-500/20 object-cover" alt="">
+            <label for="inputFotoArquivo" class="absolute bottom-0 right-0 w-8 h-8 bg-brand-500 hover:bg-brand-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg transition-colors">
+              <i class="bi bi-camera text-sm"></i>
+            </label>
+            <input type="file" id="inputFotoArquivo" accept="image/*" class="hidden" onchange="previewFotoSelecionada(this)">
+          </div>
+          <p class="text-xs text-gray-400 mt-2">Clique no ícone para alterar a foto</p>
+        </div>
+        <div>
+          <label class="label-sm">Nome</label>
+          <input type="text" id="inputNomePerfil" class="input-field" placeholder="Seu nome">
+        </div>
+        <div>
+          <label class="label-sm">E-mail</label>
+          <input type="email" id="inputEmailPerfil" class="input-field" placeholder="seu@email.com">
+        </div>
+        <div class="pt-2">
+          <button id="btnSalvarPerfil" class="btn-primary w-full"><i class="bi bi-check-lg mr-1"></i> Salvar Dados</button>
+        </div>
+      </div>
+
+      <!-- Aba: Segurança -->
+      <div id="painelSeguranca" class="aba-perfil-painel hidden p-5 space-y-4">
+        <div class="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-3">
+          <p class="text-xs text-amber-700 dark:text-amber-400"><i class="bi bi-info-circle mr-1"></i> A senha atual é obrigatória para confirmar a alteração.</p>
+        </div>
+        <div>
+          <label class="label-sm">Senha Atual</label>
+          <div class="relative">
+            <input type="password" id="inputSenhaAtual" class="input-field pr-10" placeholder="••••••••">
+            <button type="button" onclick="toggleSenhaVisivel('inputSenhaAtual', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="label-sm">Nova Senha</label>
+          <div class="relative">
+            <input type="password" id="inputNovaSenha" class="input-field pr-10" placeholder="Mínimo 6 caracteres">
+            <button type="button" onclick="toggleSenhaVisivel('inputNovaSenha', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="label-sm">Confirmar Nova Senha</label>
+          <div class="relative">
+            <input type="password" id="inputConfirmarSenha" class="input-field pr-10" placeholder="Repita a nova senha">
+            <button type="button" onclick="toggleSenhaVisivel('inputConfirmarSenha', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="pt-2">
+          <button id="btnSalvarSenha" class="btn-primary w-full"><i class="bi bi-shield-check mr-1"></i> Alterar Senha</button>
+        </div>
+      </div>
+
+      <!-- Aba: Preferências -->
+      <div id="painelPreferencias" class="aba-perfil-painel hidden p-5 space-y-4">
+        <div>
+          <label class="label-sm">Tema da Interface</label>
+          <div class="grid grid-cols-3 gap-3 mt-2">
+            <label class="relative cursor-pointer">
+              <input type="radio" name="temaPerfil" value="light" class="peer sr-only">
+              <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-500/10 transition-all">
+                <div class="w-10 h-10 rounded-full bg-gray-100 border-2 border-gray-300 flex items-center justify-center">
+                  <i class="bi bi-sun-fill text-amber-500"></i>
+                </div>
+                <span class="text-xs font-medium">Claro</span>
+              </div>
+            </label>
+            <label class="relative cursor-pointer">
+              <input type="radio" name="temaPerfil" value="dark" class="peer sr-only">
+              <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-500/10 transition-all">
+                <div class="w-10 h-10 rounded-full bg-gray-800 border-2 border-gray-600 flex items-center justify-center">
+                  <i class="bi bi-moon-fill text-blue-400"></i>
+                </div>
+                <span class="text-xs font-medium">Escuro</span>
+              </div>
+            </label>
+            <label class="relative cursor-pointer">
+              <input type="radio" name="temaPerfil" value="auto" class="peer sr-only">
+              <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-500/10 transition-all">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-800 border-2 border-gray-400 flex items-center justify-center">
+                  <i class="bi bi-circle-half text-gray-500"></i>
+                </div>
+                <span class="text-xs font-medium">Automático</span>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="pt-2">
+          <button id="btnSalvarPreferencias" class="btn-primary w-full"><i class="bi bi-check-lg mr-1"></i> Salvar Preferências</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal: Amigos -->
+  <div id="modalAmigos" class="modal-overlay hidden">
+    <div class="modal-container max-w-lg">
+      <div class="modal-header">
+        <h3 class="text-lg font-bold"><i class="bi bi-people mr-2"></i>Amigos</h3>
+        <button onclick="fecharModal('modalAmigos')" class="modal-close-btn"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <!-- Tabs de amigos -->
+      <div class="flex border-b border-gray-200 dark:border-gray-700 px-5">
+        <button onclick="trocarAbaAmigos('lista')" id="tabAmigosLista" class="tab-amigo-btn px-4 py-2.5 text-sm font-medium border-b-2 border-brand-500 text-brand-600 dark:text-brand-400 transition-colors">
+          <i class="bi bi-people-fill mr-1"></i> Meus Amigos
+        </button>
+        <button onclick="trocarAbaAmigos('pendentes')" id="tabAmigosPendentes" class="tab-amigo-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors relative">
+          <i class="bi bi-clock-history mr-1"></i> Pendentes
+          <span id="badgePendentesTab" class="ml-1 w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full inline-flex items-center justify-center hidden">0</span>
+        </button>
+        <button onclick="trocarAbaAmigos('adicionar')" id="tabAmigosAdicionar" class="tab-amigo-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+          <i class="bi bi-person-plus mr-1"></i> Adicionar
+        </button>
+      </div>
+
+      <!-- Aba: Lista de Amigos -->
+      <div id="painelAmigosLista" class="aba-amigo-painel p-5">
+        <div id="listaAmigos" class="space-y-3">
+          <p class="text-center text-gray-400 py-6 text-sm">Carregando...</p>
+        </div>
+      </div>
+
+      <!-- Aba: Solicitações Pendentes -->
+      <div id="painelAmigosPendentes" class="aba-amigo-painel hidden p-5">
+        <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Recebidas</h4>
+        <div id="listaPendentesRecebidos" class="space-y-3 mb-6">
+          <p class="text-center text-gray-400 py-4 text-sm">Nenhuma solicitação pendente</p>
+        </div>
+        <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Enviadas</h4>
+        <div id="listaPendentesEnviados" class="space-y-3">
+          <p class="text-center text-gray-400 py-4 text-sm">Nenhuma solicitação enviada</p>
+        </div>
+      </div>
+
+      <!-- Aba: Adicionar Amigo -->
+      <div id="painelAmigosAdicionar" class="aba-amigo-painel hidden p-5">
+        <div class="relative mb-4">
+          <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input type="text" id="inputBuscarAmigo" class="input-field pl-10" placeholder="Buscar por nome de usuário..." />
+        </div>
+        <div id="resultadoBuscarAmigo" class="space-y-3">
+          <p class="text-center text-gray-400 py-4 text-sm">Digite para buscar usuários</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <script src="js/dashboard.js"></script>
 </body>
 </html>

@@ -1,7 +1,31 @@
 package com.finance.controller;
 
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.finance.dto.Usuario.DadosRegistro;
-import com.finance.dto.Usuario.DadosRetorno;
+import com.finance.dto.Usuario.DadosTrocaSenha;
 import com.finance.model.Usuario;
 import com.finance.security.AuthHelper;
 import com.finance.security.JwtService;
@@ -10,18 +34,6 @@ import com.finance.service.UsuarioService;
 import com.finance.util.SanitizacaoUtil;
 
 import jakarta.validation.Valid;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -44,6 +56,7 @@ public class UsuarioController {
         Usuario newUser = service.cadastrar(dados);
 
         String token = jwtService.gerarToken(newUser.getId(), newUser.getUsername());
+        String refreshToken = jwtService.gerarRefreshToken(newUser.getId(), newUser.getUsername());
 
         var uri = URI.create("/api/auth/perfil/" + newUser.getId());
 
@@ -51,6 +64,7 @@ public class UsuarioController {
         response.put("id", newUser.getId());
         response.put("username", newUser.getUsername());
         response.put("token", token);
+        response.put("refreshToken", refreshToken);
 
         return ResponseEntity.created(uri).body(response);
     }
@@ -69,11 +83,13 @@ public class UsuarioController {
             lancamentoService.processarGastosFixosDoMes(u.getId());
 
             String token = jwtService.gerarToken(u.getId(), u.getUsername());
+            String refreshToken = jwtService.gerarRefreshToken(u.getId(), u.getUsername());
 
             Map<String, Object> response = new HashMap<>();
             response.put("id", u.getId());
             response.put("username", u.getUsername());
             response.put("token", token);
+            response.put("refreshToken", refreshToken);
 
             return ResponseEntity.ok(response);
         }
@@ -83,52 +99,115 @@ public class UsuarioController {
         return ResponseEntity.status(401).body(erro);
     }
 
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> dados) {
+        String refreshToken = dados.get("refreshToken");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("erro", "Refresh token é obrigatório"));
+        }
+
+        try {
+            if (!jwtService.isTokenValido(refreshToken) || !jwtService.isRefreshToken(refreshToken)) {
+                return ResponseEntity.status(401).body(Map.of("erro", "Refresh token inválido ou expirado"));
+            }
+
+            Long userId = jwtService.extrairUserId(refreshToken);
+            String username = jwtService.extrairUsername(refreshToken);
+
+            String novoToken = jwtService.gerarToken(userId, username);
+            String novoRefreshToken = jwtService.gerarRefreshToken(userId, username);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", novoToken);
+            response.put("refreshToken", novoRefreshToken);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body(Map.of("erro", "Refresh token inválido"));
+        }
+    }
+
     @GetMapping("/verificar")
     public ResponseEntity<?> verificar() {
         Usuario usuario = AuthHelper.getUsuarioAutenticado();
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("id", usuario.getId());
-        response.put("username", usuario.getUsername());
-        response.put("nome", usuario.getNome());
-        response.put("fotoPerfil", usuario.getFotoPerfil());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(buildPerfilResponse(usuario));
     }
 
     @GetMapping("/perfil")
     public ResponseEntity<?> obterPerfil() {
         Usuario usuario = AuthHelper.getUsuarioAutenticado();
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("id", usuario.getId());
-        response.put("username", usuario.getUsername());
-        response.put("nome", usuario.getNome());
-        response.put("fotoPerfil", usuario.getFotoPerfil());
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(buildPerfilResponse(usuario));
     }
 
     @PutMapping("/perfil")
-    public ResponseEntity<?> atualizarPerfil(@RequestBody Map<String, String> dados) {
+    public ResponseEntity<?> atualizarPerfil(
+            @RequestParam(value = "nome", required = false) String nome,
+            @RequestParam(value = "email", required = false) String email,
+            @RequestParam(value = "tema", required = false) String tema,
+            @RequestParam(value = "foto", required = false) MultipartFile foto) {
+
         Usuario usuario = AuthHelper.getUsuarioAutenticado();
 
-        if (dados.containsKey("nome")) {
-            usuario.setNome(SanitizacaoUtil.sanitizar(dados.get("nome")));
+        if (nome != null) {
+            usuario.setNome(SanitizacaoUtil.sanitizar(nome));
         }
 
-        if (dados.containsKey("fotoPerfil")) {
-            usuario.setFotoPerfil(SanitizacaoUtil.sanitizar(dados.get("fotoPerfil")));
+        if (email != null) {
+            usuario.setEmail(SanitizacaoUtil.sanitizar(email));
+        }
+
+        if (tema != null) {
+            String t = tema.toLowerCase().trim();
+            if ("dark".equals(t) || "light".equals(t) || "auto".equals(t)) {
+                usuario.setTema(t);
+            }
+        }
+
+        // Upload de foto real
+        if (foto != null && !foto.isEmpty()) {
+            try {
+                Path uploadDir = Paths.get("uploads");
+                Files.createDirectories(uploadDir);
+
+                String originalFilename = foto.getOriginalFilename();
+                String ext = "";
+                if (originalFilename != null && originalFilename.contains(".")) {
+                    ext = originalFilename.substring(originalFilename.lastIndexOf("."));
+                }
+                String filename = UUID.randomUUID().toString() + ext;
+                Path filePath = uploadDir.resolve(filename);
+                Files.copy(foto.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+                usuario.setFotoPerfil("/uploads/" + filename);
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().body(Map.of("erro", "Erro ao salvar imagem: " + e.getMessage()));
+            }
         }
 
         Usuario atualizado = service.atualizar(usuario);
+        return ResponseEntity.ok(buildPerfilResponse(atualizado));
+    }
 
+    @PutMapping("/alterar-senha")
+    public ResponseEntity<?> alterarSenha(@RequestBody @Valid DadosTrocaSenha dados) {
+        Long usuarioId = AuthHelper.getUsuarioIdAutenticado();
+        try {
+            service.alterarSenha(usuarioId, dados.senhaAtual(), dados.novaSenha());
+            return ResponseEntity.ok(Map.of("mensagem", "Senha alterada com sucesso!"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+
+    private Map<String, Object> buildPerfilResponse(Usuario u) {
         Map<String, Object> response = new HashMap<>();
-        response.put("id", atualizado.getId());
-        response.put("username", atualizado.getUsername());
-        response.put("nome", atualizado.getNome());
-        response.put("fotoPerfil", atualizado.getFotoPerfil());
-
-        return ResponseEntity.ok(response);
+        response.put("id", u.getId());
+        response.put("username", u.getUsername());
+        response.put("nome", u.getNome());
+        response.put("email", u.getEmail());
+        response.put("fotoPerfil", u.getFotoPerfil());
+        response.put("tema", u.getTema());
+        return response;
     }
 
     @GetMapping("/buscar")
@@ -190,8 +269,8 @@ public class UsuarioController {
         String token = dados.get("token");
         String novaSenha = dados.get("novaSenha");
 
-        if (token == null || novaSenha == null || novaSenha.length() < 6) {
-            return ResponseEntity.badRequest().body(Map.of("erro", "Token e nova senha (mín. 6 caracteres) são obrigatórios"));
+        if (token == null || novaSenha == null || novaSenha.length() < 8) {
+            return ResponseEntity.badRequest().body(Map.of("erro", "Token e nova senha (mín. 8 caracteres, com número, caractere especial e letra maiúscula) são obrigatórios"));
         }
 
         try {
@@ -240,12 +319,14 @@ public class UsuarioController {
             lancamentoService.processarGastosFixosDoMes(usuario.getId());
 
             String token = jwtService.gerarToken(usuario.getId(), usuario.getUsername());
+            String refreshToken = jwtService.gerarRefreshToken(usuario.getId(), usuario.getUsername());
 
             Map<String, Object> response = new HashMap<>();
             response.put("id", usuario.getId());
             response.put("username", usuario.getUsername());
             response.put("nome", usuario.getNome());
             response.put("token", token);
+            response.put("refreshToken", refreshToken);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

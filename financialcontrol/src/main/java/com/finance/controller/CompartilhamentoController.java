@@ -1,16 +1,31 @@
 package com.finance.controller;
 
-import com.finance.model.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.finance.model.GastoCompartilhado;
+import com.finance.model.Lancamento;
+import com.finance.model.StatusCompartilhamento;
+import com.finance.model.TipoCompartilhamento;
+import com.finance.repository.AmizadeRepository;
 import com.finance.repository.GastoCompartilhadoRepository;
 import com.finance.repository.LancamentoRepository;
 import com.finance.security.AuthHelper;
 import com.finance.service.LancamentoService;
 import com.finance.util.SanitizacaoUtil;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.*;
 
 @RestController
 @RequestMapping("/api/compartilhamento")
@@ -25,6 +40,9 @@ public class CompartilhamentoController {
     @Autowired
     private LancamentoService lancamentoService;
 
+    @Autowired
+    private AmizadeRepository amizadeRepository;
+
     @PostMapping
     public ResponseEntity<?> compartilhar(@RequestBody Map<String, Object> dados) {
         Long usuarioOrigemId = AuthHelper.getUsuarioIdAutenticado();
@@ -32,6 +50,11 @@ public class CompartilhamentoController {
         Long usuarioDestinoId = Long.valueOf(dados.get("usuarioDestinoId").toString());
         String descricao = SanitizacaoUtil.sanitizar(dados.get("descricao").toString());
         String tipoStr = dados.get("tipo").toString();
+
+        // Verifica se são amigos
+        if (!amizadeRepository.saoAmigos(usuarioOrigemId, usuarioDestinoId)) {
+            return ResponseEntity.badRequest().body(Map.of("erro", "Você só pode compartilhar gastos com amigos. Adicione este usuário como amigo primeiro."));
+        }
 
         GastoCompartilhado compartilhamento = new GastoCompartilhado();
         compartilhamento.setLancamentoId(lancamentoId);

@@ -13,6 +13,7 @@ public class Lancamento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "usuario_id")
     private Long usuarioId;
 
     private String descricao;
@@ -32,4 +33,11 @@ public class Lancamento {
     private Integer parcelaAtual;
 
     private Integer totalParcelas;
+
+    /** FITID do OFX — identificador único da transação para evitar duplicatas */
+    @Column(name = "id_transacao")
+    private String idTransacao;
+
+    @Enumerated(EnumType.STRING)
+    private MetodoPagamento metodoPagamento;
 }
